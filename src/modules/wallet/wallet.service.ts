@@ -1,8 +1,15 @@
+import { PrismaClient } from '@prisma/client'
 import { Injectable } from '@nestjs/common'
+
 import { PrismaService } from 'src/shared/prisma/prisma.service'
-import { CreateWalletDto } from './dto/create-wallet.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
+import { CreateWalletDto } from './dto/create-wallet.dto'
 import { paginate } from 'src/shared/utils/pagination'
+
+type TransactionPrismaClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
+>
 
 @Injectable()
 export class WalletService {
@@ -38,6 +45,22 @@ export class WalletService {
         },
       },
       ...pagination,
+    })
+  }
+
+  async updateBalance(
+    id: string,
+    amount: number,
+    prismaClient?: PrismaClient | TransactionPrismaClient,
+  ) {
+    const prisma = prismaClient || this.db
+    return prisma.wallet.update({
+      where: { id },
+      data: {
+        balance: {
+          increment: amount,
+        },
+      },
     })
   }
 }
