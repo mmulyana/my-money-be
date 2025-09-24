@@ -1,15 +1,25 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common'
-import { CategoryService } from './category.service'
+import {
+  Controller,
+  Delete,
+  Param,
+  Patch,
+  Query,
+  Body,
+  Post,
+  Get,
+} from '@nestjs/common'
+
 import { ResponseMessage } from 'src/shared/utils/response-message.decorator'
-import { CreateCategoryDto } from './dto/create-category.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
+import { CreateCategoryDto } from './dto/create-category.dto'
+import { CategoryService } from './category.service'
 
 @Controller('category')
 export class CategoryController {
   constructor(private readonly service: CategoryService) {}
 
   @Post()
-  @ResponseMessage('Category created successfully')
+  @ResponseMessage('Category successfully created')
   create(@Body() body: CreateCategoryDto) {
     return this.service.create(body)
   }
@@ -23,5 +33,17 @@ export class CategoryController {
     @Query('type') type?: string,
   ) {
     return this.service.findAll({ pagination, q, parentId, type })
+  }
+
+  @Patch(':id')
+  @ResponseMessage('Category successfully updated')
+  update(@Param('id') id: string, @Body() body: CreateCategoryDto) {
+    return this.service.update(id, body)
+  }
+
+  @Delete(':id')
+  @ResponseMessage('Category successfully removed')
+  remove(@Param('id') id: string) {
+    return this.service.remove(id)
   }
 }

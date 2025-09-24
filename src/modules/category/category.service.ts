@@ -9,7 +9,8 @@ export class CategoryService {
   constructor(private db: PrismaService) {}
 
   async create(data: CreateCategoryDto) {
-    return await this.db.category.create({ data })
+    const res = await this.db.category.create({ data })
+    return { data: res }
   }
 
   async findAll({
@@ -51,14 +52,15 @@ export class CategoryService {
     if (!data) {
       throw new NotFoundException('Journal not found')
     }
-    return data
+    return { data }
   }
 
   async update(id: string, data: CreateCategoryDto) {
-    return await this.db.category.update({ where: { id }, data })
+    const res = await this.db.category.update({ where: { id }, data })
+    return { data: res }
   }
 
   async remove(id: string) {
-    return await this.db.category.delete({ where: { id } })
+    await this.db.category.delete({ where: { id } })
   }
 }

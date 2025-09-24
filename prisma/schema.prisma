@@ -8,9 +8,10 @@ datasource db {
 }
 
 model Wallet {
-  id    String @id @default(ulid())
-  name  String
-  color String
+  id      String @id @default(ulid())
+  name    String
+  color   String
+  balance Int?   @default(0)
 
   transaction Transaction[]
 }
