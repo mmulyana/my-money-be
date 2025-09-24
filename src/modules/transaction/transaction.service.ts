@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
-import { addHours, format } from 'date-fns'
+import { addHours, endOfMonth, format, startOfMonth } from 'date-fns'
 
 import { CreateTransactionDto } from './dto/create-transaction.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
@@ -153,8 +153,11 @@ export class TransactionService {
   }) {
     let dateFilter = {}
     if (monthIndex != null && year != null) {
-      const startDate = new Date(year, monthIndex, 1, 0, 0, 0)
-      const endDate = new Date(year, monthIndex + 1, 0, 23, 59, 59)
+      const baseDate = new Date(year, monthIndex, 1)
+
+      const startDate = startOfMonth(baseDate)
+      const endDate = endOfMonth(baseDate)
+
       dateFilter = {
         date: {
           gte: startDate,
@@ -162,7 +165,6 @@ export class TransactionService {
         },
       }
     }
-
     const transactions = await paginate({
       model: this.db.transaction,
       args: {
@@ -190,8 +192,11 @@ export class TransactionService {
               transactions: [],
             }
           }
-
-          acc[dateKey].total += trx.amount
+          if (trx.type === 'expense' || trx.type === 'transfer') {
+            acc[dateKey].total -= trx.amount
+          } else if (trx.type === 'income') {
+            acc[dateKey].total += trx.amount
+          }
           acc[dateKey].transactions.push(trx)
 
           return acc
