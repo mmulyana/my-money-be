@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { CreateCategoryDto } from './dto/create-category.dto'
-import { paginate } from 'src/shared/utils/pagination'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
+import { paginate } from 'src/shared/utils/pagination'
 
 @Injectable()
 export class CategoryService {

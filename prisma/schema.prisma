@@ -17,10 +17,10 @@ model Wallet {
 }
 
 model Category {
-  id       String  @id @default(ulid())
+  id       String          @id @default(ulid())
   name     String
   color    String
-  type     String
+  type     TransactionType
   parentId String?
 
   parent Category? @relation("CategoryToSubcategories", fields: [parentId], references: [id])
@@ -30,11 +30,12 @@ model Category {
 }
 
 model Transaction {
-  id         String @id @default(ulid())
+  id         String          @id @default(ulid())
   categoryId String
   walletId   String
   amount     Int
-  type       String
+  type       TransactionType
+  date       DateTime
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -42,4 +43,10 @@ model Transaction {
 
   category Category @relation(fields: [categoryId], references: [id])
   wallet   Wallet   @relation(fields: [walletId], references: [id])
+}
+
+enum TransactionType {
+  expense
+  income
+  transfer
 }
