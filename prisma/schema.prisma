@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Wallet {
+  id    String @id @default(ulid())
+  name  String
+  color String
+
+  transaction Transaction[]
+}
+
+model Category {
+  id       String  @id @default(ulid())
+  name     String
+  color    String
+  type     String
+  parentId String?
+
+  parent Category? @relation("CategoryToSubcategories", fields: [parentId], references: [id])
+
+  children     Category[]    @relation("CategoryToSubcategories")
+  transactions Transaction[]
+}
+
+model Transaction {
+  id         String @id @default(ulid())
+  categoryId String
+  walletId   String
+  amount     Int
+  type       String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  category Category @relation(fields: [categoryId], references: [id])
+  wallet   Wallet   @relation(fields: [walletId], references: [id])
+}
