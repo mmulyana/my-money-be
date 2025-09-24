@@ -1,0 +1,64 @@
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { PrismaService } from 'src/shared/prisma/prisma.service'
+import { CreateCategoryDto } from './dto/create-category.dto'
+import { paginate } from 'src/shared/utils/pagination'
+import { PaginationDto } from 'src/shared/dto/pagination.dto'
+
+@Injectable()
+export class CategoryService {
+  constructor(private db: PrismaService) {}
+
+  async create(data: CreateCategoryDto) {
+    return await this.db.category.create({ data })
+  }
+
+  async findAll({
+    pagination,
+    q,
+    parentId,
+    type,
+  }: {
+    pagination: PaginationDto
+    q?: string
+    parentId?: string
+    type?: string
+  }) {
+    const isParentQuery = !parentId
+
+    return paginate({
+      model: this.db.category,
+      args: {
+        where: {
+          AND: [
+            q ? { name: { contains: q, mode: 'insensitive' } } : {},
+            parentId ? { parentId } : { parentId: null },
+            type ? { type } : {},
+          ],
+        },
+        include: isParentQuery
+          ? {
+              children: true,
+            }
+          : undefined,
+        orderBy: { name: 'asc' },
+      },
+      ...pagination,
+    })
+  }
+
+  async find(id: string) {
+    const data = await this.db.category.findUnique({ where: { id } })
+    if (!data) {
+      throw new NotFoundException('Journal not found')
+    }
+    return data
+  }
+
+  async update(id: string, data: CreateCategoryDto) {
+    return await this.db.category.update({ where: { id }, data })
+  }
+
+  async remove(id: string) {
+    return await this.db.category.delete({ where: { id } })
+  }
+}
