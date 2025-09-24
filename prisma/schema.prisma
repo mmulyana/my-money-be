@@ -36,6 +36,7 @@ model Transaction {
   amount     Int
   type       TransactionType
   date       DateTime
+  remark     String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

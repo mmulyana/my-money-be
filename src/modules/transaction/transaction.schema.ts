@@ -7,4 +7,5 @@ export const TransactionSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']),
   date: z.coerce.date(),
   toWalletId: z.string().nullable().optional(),
+  remark: z.string().nullable().optional(),
 })

@@ -185,7 +185,7 @@ export class TransactionService {
 
           if (!acc[dateKey]) {
             acc[dateKey] = {
-              date: dateKey,
+              date: format(new Date(trx.date), 'dd MMM'),
               total: 0,
               transactions: [],
             }
