@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { CreateBudgetDto } from './dto/create-budget.dto'
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
@@ -18,6 +14,30 @@ export class BudgetService {
 
   async create(data: CreateBudgetDto) {
     return this.db.$transaction(async (prisma) => {
+      // cek jika ada budget overlap yg category ada yg sama
+      const overlapping = await prisma.budget.findMany({
+        where: {
+          walletId: data.walletId,
+          AND: [
+            { startAt: { lte: data.endAt } },
+            { endAt: { gte: data.startAt } },
+          ],
+        },
+        include: { items: true },
+      })
+
+      if (overlapping.length > 0 && data.categories?.length) {
+        for (const cat of data.categories) {
+          for (const b of overlapping) {
+            if (b.items.some((i) => i.categoryId === cat.categoryId)) {
+              throw new BadRequestException(
+                `Category ${cat.categoryId} sudah ada di budget ${b.name} dengan periode bertabrakan`,
+              )
+            }
+          }
+        }
+      }
+
       return await prisma.budget.create({
         data: {
           endAt: data.endAt,
@@ -104,6 +124,7 @@ export class BudgetService {
               category: true,
             },
           },
+          wallet: true,
         },
       },
       ...pagination,
@@ -131,8 +152,14 @@ export class BudgetService {
       })
 
       return {
-        ...budget,
+        id: budget.id,
+        name: budget.name,
+        startAt: budget.startAt,
+        endAt: budget.endAt,
+        wallet: budget.wallet,
+        total: budget.total,
         remaining: budget.total - totalActual,
+        spent: totalActual,
         usage,
         categories,
       }
@@ -145,15 +172,39 @@ export class BudgetService {
   }
 
   async createItem(body: CreateBudgetItemDto) {
-    const data = await this.db.budgetItem.findFirst({
-      where: {
-        budgetId: body.budgetId,
-        categoryId: body.categoryId,
-      },
+    const budget = await this.db.budget.findUnique({
+      where: { id: body.budgetId },
     })
-    if (data) {
-      throw new BadRequestException('Category is exists')
+    if (!budget) throw new BadRequestException('Budget not found')
+
+    // cari budget lain di wallet yang overlap
+    const overlapping = await this.db.budget.findMany({
+      where: {
+        walletId: budget.walletId,
+        id: { not: budget.id }, // selain budget ini
+        AND: [
+          { startAt: { lte: budget.endAt } },
+          { endAt: { gte: budget.startAt } },
+        ],
+      },
+      include: { items: true },
+    })
+
+    for (const b of overlapping) {
+      if (b.items.some((i) => i.categoryId === body.categoryId)) {
+        throw new BadRequestException(
+          `This category already exists in budget "${b.name}" with overlapping period and same wallet`,
+        )
+      }
     }
+
+    // cek duplikat di budget sendiri
+    const exists = await this.db.budgetItem.findFirst({
+      where: { budgetId: body.budgetId, categoryId: body.categoryId },
+    })
+    if (exists)
+      throw new BadRequestException('Category is exist in this budget')
+
     return this.db.budgetItem.create({
       data: {
         planned: body.planned,
@@ -176,6 +227,12 @@ export class BudgetService {
   }
 
   async removeItem(id: string) {
-    return this.db.budgetItem.delete({ where: { id } })
+    return this.db.$transaction(async (prisma) => {
+      await prisma.budgetItemTransaction.deleteMany({
+        where: { budgetItemId: id },
+      })
+
+      return prisma.budgetItem.delete({ where: { id } })
+    })
   }
 }
