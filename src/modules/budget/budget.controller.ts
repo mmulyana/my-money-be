@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -12,6 +13,8 @@ import { CreateBudgetDto } from './dto/create-budget.dto'
 import { BudgetService } from './budget.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { UpdateBudgetDto } from './dto/update-budget.dto'
+import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
+import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
 
 @Controller('budget')
 export class BudgetController {
@@ -37,5 +40,23 @@ export class BudgetController {
     @Query('year') year: number,
   ) {
     return this.service.findAll({ pagination, month, year })
+  }
+
+  @Post('/item')
+  @ResponseMessage('New item saved')
+  createItem(@Body() body: CreateBudgetItemDto) {
+    return this.service.createItem(body)
+  }
+
+  @Patch('/item/:id')
+  @ResponseMessage('item updated')
+  updateItem(@Param('id') id: string, @Body() body: UpdateBudgetItemDto) {
+    return this.service.updateItem(id, body)
+  }
+
+  @Delete('/item/:id')
+  @ResponseMessage('item removed')
+  destroyItem(@Param('id') id: string) {
+    return this.service.removeItem(id)
   }
 }

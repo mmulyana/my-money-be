@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { CreateBudgetDto } from './dto/create-budget.dto'
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { endOfMonth, startOfMonth } from 'date-fns'
 import { paginate } from 'src/shared/utils/pagination'
+import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
 import { UpdateBudgetDto } from './dto/update-budget.dto'
+import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
 
 @Injectable()
 export class BudgetService {
@@ -59,7 +65,7 @@ export class BudgetService {
 
       const startDate = startOfMonth(baseDate)
       const endDate = endOfMonth(baseDate)
-      
+
       dateFilter = {
         // event dimulai di bulan ini
         OR: [
@@ -82,19 +88,6 @@ export class BudgetService {
         ],
       }
     }
-
-    // const data = await this.db.budget.findMany({
-    //   include: {
-    //     items: {
-    //       include: {
-    //         category: true,
-    //       },
-    //     },
-    //   },
-    //   orderBy: {
-    //     startAt: 'desc',
-    //   },
-    // })
 
     const data = await paginate({
       model: this.db.budget,
@@ -129,6 +122,7 @@ export class BudgetService {
           i.planned > 0 ? Math.round((i.actual / i.planned) * 100) : 0
 
         return {
+          id: i.id,
           category: i.category,
           planned: i.planned,
           actual: i.actual,
@@ -148,5 +142,40 @@ export class BudgetService {
       data: budgets,
       meta: data.meta,
     }
+  }
+
+  async createItem(body: CreateBudgetItemDto) {
+    const data = await this.db.budgetItem.findFirst({
+      where: {
+        budgetId: body.budgetId,
+        categoryId: body.categoryId,
+      },
+    })
+    if (data) {
+      throw new BadRequestException('Category is exists')
+    }
+    return this.db.budgetItem.create({
+      data: {
+        planned: body.planned,
+        budgetId: body.budgetId,
+        categoryId: body.categoryId,
+      },
+    })
+  }
+
+  async updateItem(id: string, body: UpdateBudgetItemDto) {
+    return this.db.budgetItem.update({
+      data: {
+        planned: body.planned,
+        categoryId: body.categoryId,
+      },
+      where: {
+        id,
+      },
+    })
+  }
+
+  async removeItem(id: string) {
+    return this.db.budgetItem.delete({ where: { id } })
   }
 }

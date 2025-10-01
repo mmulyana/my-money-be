@@ -1,4 +1,4 @@
-import z from 'zod'
+import z, { string } from 'zod'
 
 export const BudgetSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -13,4 +13,15 @@ export const BudgetSchema = z.object({
     })
     .array()
     .optional(),
+})
+
+export const BudgetItemSchema = z.object({
+  categoryId: string(),
+  planned: z.coerce.number(),
+  budgetId: z.string(),
+})
+
+export const UpdateBudgetItemSchema = z.object({
+  categoryId: string(),
+  planned: z.coerce.number(),
 })
