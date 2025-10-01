@@ -8,6 +8,8 @@ import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { paginate } from 'src/shared/utils/pagination'
 
 import { WalletService } from '../wallet/wallet.service'
+import { TPrismaClient } from 'src/shared/types'
+import { PrismaClient, Transaction } from '@prisma/client'
 
 @Injectable()
 export class TransactionService {
@@ -48,6 +50,10 @@ export class TransactionService {
           date: normalizedDate,
         },
       })
+
+      // apply contribution for budget
+      await this.applyContribution(prisma, newTransaction)
+
       return { data: newTransaction }
     })
   }
@@ -90,6 +96,9 @@ export class TransactionService {
         throw new Error('date is required')
       }
 
+      // reverse budget contribution
+      await this.reverseContribution(prisma, oldTransaction)
+
       const updatedTransaction = await prisma.transaction.update({
         where: { id },
         data: {
@@ -97,6 +106,10 @@ export class TransactionService {
           date: normalizedDate,
         },
       })
+
+      // apply contribution for budget
+      await this.applyContribution(prisma, updatedTransaction)
+
       return { data: updatedTransaction }
     })
   }
@@ -123,6 +136,9 @@ export class TransactionService {
           prisma,
         )
       }
+
+      // reverse budget contribution
+      await this.reverseContribution(prisma, transactionToDelete)
 
       await prisma.transaction.update({
         where: { id },
@@ -215,6 +231,92 @@ export class TransactionService {
     return {
       data: grouped,
       meta: transactions.meta,
+    }
+  }
+
+  // helper cari budget item
+  private async findmatchingBudgetItems(
+    prisma: PrismaClient | TPrismaClient,
+    trx: Transaction,
+  ) {
+    if (trx.type !== 'expense') return []
+
+    return prisma.budgetItem.findMany({
+      where: {
+        categoryId: trx.categoryId,
+        budget: {
+          walletId: trx.walletId,
+          startAt: { lte: trx.date },
+          endAt: { gte: trx.date },
+        },
+      },
+    })
+  }
+
+  // tambah actual
+  private async applyContribution(
+    prisma: PrismaClient | TPrismaClient,
+    trx: Transaction,
+  ) {
+    // console.log('apply contribution')
+    if (trx.type !== 'expense') return
+
+    const budgetItems = await this.findmatchingBudgetItems(prisma, trx)
+
+    for (const budgetItem of budgetItems) {
+      const existing = await prisma.budgetItemTransaction.findUnique({
+        where: {
+          budgetItemId_transactionId: {
+            budgetItemId: budgetItem.id,
+            transactionId: trx.id,
+          },
+        },
+      })
+
+      if (existing) continue
+
+      // tambah actual
+      await prisma.budgetItem.update({
+        where: { id: budgetItem.id },
+        data: {
+          actual: { increment: trx.amount },
+        },
+      })
+
+      await prisma.budgetItemTransaction.create({
+        data: {
+          budgetItemId: budgetItem.id,
+          transactionId: trx.id,
+        },
+      })
+    }
+  }
+
+  // kurangi actual
+  private async reverseContribution(
+    prisma: PrismaClient | TPrismaClient,
+    trx: Transaction,
+  ) {
+    if (!trx) return
+    if (trx.type !== 'expense') return
+    // console.log('reverse contribution')
+
+    const pivots = await prisma.budgetItemTransaction.findMany({
+      where: { transactionId: trx.id },
+    })
+
+    for (const p of pivots) {
+      // kurangi actual
+      await prisma.budgetItem.update({
+        where: { id: p.budgetItemId },
+        data: {
+          actual: { decrement: trx.amount },
+        },
+      })
+
+      await prisma.budgetItemTransaction.delete({
+        where: { id: p.id },
+      })
     }
   }
 }
