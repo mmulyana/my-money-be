@@ -14,6 +14,7 @@ model Wallet {
   balance Int?   @default(0)
 
   transaction Transaction[]
+  budgets     Budget[]
 }
 
 model Category {
@@ -22,11 +23,13 @@ model Category {
   color    String
   type     TransactionType
   parentId String?
+  imageUrl String?
 
-  parent Category? @relation("CategoryToSubcategories", fields: [parentId], references: [id])
-
-  children     Category[]    @relation("CategoryToSubcategories")
   transactions Transaction[]
+  budgetItem   budgetItem[]
+
+  parent   Category?  @relation("CategoryToSubcategories", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToSubcategories")
 }
 
 model Transaction {
@@ -50,4 +53,28 @@ enum TransactionType {
   expense
   income
   transfer
+}
+
+model Budget {
+  id       String   @id @default(ulid())
+  name     String
+  startAt  DateTime
+  endAt    DateTime
+  total    Int
+  walletId String
+
+  items budgetItem[]
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+}
+
+model budgetItem {
+  id         String @id @default(ulid())
+  categoryId String
+  budgetId   String
+  planned    Int
+  actual     Int    @default(0)
+
+  budget   Budget   @relation(fields: [budgetId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
 }

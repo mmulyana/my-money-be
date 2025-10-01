@@ -8,9 +8,10 @@ import { TransactionModule } from './modules/transaction/transaction.module'
 import { CategoryModule } from './modules/category/category.module'
 import { WalletModule } from './modules/wallet/wallet.module'
 import { PrismaModule } from './shared/prisma/prisma.module'
+import { BudgetModule } from './modules/budget/budget.module';
 
 @Module({
-  imports: [PrismaModule, CategoryModule, WalletModule, TransactionModule],
+  imports: [PrismaModule, CategoryModule, WalletModule, TransactionModule, BudgetModule],
   controllers: [AppController],
   providers: [AppService],
 })
