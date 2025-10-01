@@ -5,11 +5,7 @@ import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { CreateWalletDto } from './dto/create-wallet.dto'
 import { paginate } from 'src/shared/utils/pagination'
-
-type TransactionPrismaClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
->
+import { TPrismaClient } from 'src/shared/types'
 
 @Injectable()
 export class WalletService {
@@ -51,7 +47,7 @@ export class WalletService {
   async updateBalance(
     id: string,
     amount: number,
-    prismaClient?: PrismaClient | TransactionPrismaClient,
+    prismaClient?: PrismaClient | TPrismaClient,
   ) {
     const prisma = prismaClient || this.db
     return prisma.wallet.update({
