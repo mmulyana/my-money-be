@@ -18,12 +18,13 @@ model Wallet {
 }
 
 model Category {
-  id       String          @id @default(ulid())
-  name     String
-  color    String
-  type     TransactionType
-  parentId String?
-  imageUrl String?
+  id           String          @id @default(ulid())
+  name         String
+  color        String
+  type         TransactionType
+  parentId     String?
+  imageUrl     String?
+  imageVariant String?
 
   transactions Transaction[]
   budgetItem   budgetItem[]
@@ -46,6 +47,7 @@ model Transaction {
   deletedAt DateTime?
 
   budgetItemTransaction BudgetItemTransaction[]
+  wishlistTransaction   WishlistTransaction[]
 
   category Category @relation(fields: [categoryId], references: [id])
   wallet   Wallet   @relation(fields: [walletId], references: [id])
@@ -95,4 +97,24 @@ model BudgetItemTransaction {
   @@unique([budgetItemId, transactionId])
   @@index([transactionId])
   @@index([budgetItemId])
+}
+
+model Wishlist {
+  id          String    @id @default(ulid())
+  name        String
+  description String?
+  deadlineAt  DateTime
+  doneAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  transaction WishlistTransaction[]
+}
+
+model WishlistTransaction {
+  id            String @id @default(ulid())
+  wishlistId    String
+  transactionId String
+
+  wishlist    Wishlist    @relation(fields: [wishlistId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
 }
