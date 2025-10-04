@@ -6,6 +6,7 @@ import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { CreateWalletDto } from './dto/create-wallet.dto'
 import { paginate } from 'src/shared/utils/pagination'
 import { TPrismaClient } from 'src/shared/types'
+import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class WalletService {
@@ -30,7 +31,7 @@ export class WalletService {
   }
 
   async findAll({ pagination, q }: { pagination: PaginationDto; q?: string }) {
-    return paginate({
+    const data = await paginate({
       model: this.db.wallet,
       args: {
         where: {
@@ -42,11 +43,18 @@ export class WalletService {
       },
       ...pagination,
     })
+
+    const serialized = data.data.map(serialize)
+    
+    return {
+      data: serialized,
+      meta: data.meta,
+    }
   }
 
   async updateBalance(
     id: string,
-    amount: number,
+    amount: bigint,
     prismaClient?: PrismaClient | TPrismaClient,
   ) {
     const prisma = prismaClient || this.db

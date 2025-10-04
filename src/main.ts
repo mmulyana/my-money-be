@@ -1,6 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core'
 
-import { ResponseInterceptor } from './shared/interceptor/response/response.interceptor'
+import { ResponseInterceptor } from './shared/interceptor/response.interceptor'
 import { ZodValidationPipe } from './shared/pipes/zod-validation/zod-validation.pipe'
 import { AppModule } from './app.module'
 

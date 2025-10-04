@@ -10,6 +10,7 @@ import { paginate } from 'src/shared/utils/pagination'
 import { WalletService } from '../wallet/wallet.service'
 import { TPrismaClient } from 'src/shared/types'
 import { PrismaClient, Transaction } from '@prisma/client'
+import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class TransactionService {
@@ -110,7 +111,7 @@ export class TransactionService {
       // apply contribution for budget
       await this.applyContribution(prisma, updatedTransaction)
 
-      return { data: updatedTransaction }
+      return { data: serialize(updatedTransaction) }
     })
   }
 
@@ -203,33 +204,40 @@ export class TransactionService {
 
           if (!acc[dateKey]) {
             acc[dateKey] = {
-              date: format(new Date(trx.date), 'dd MMM'),
-              total: 0,
+              date: format(new Date(trx.date), 'd MMM'),
+              total: BigInt(0),
               transactions: [],
             }
           }
+
           if (trx.type === 'expense' || trx.type === 'transfer') {
             acc[dateKey].total -= trx.amount
           } else if (trx.type === 'income') {
             acc[dateKey].total += trx.amount
           }
-          acc[dateKey].transactions.push(trx)
 
+          acc[dateKey].transactions.push(trx)
           return acc
         },
         {} as Record<
           string,
           {
             date: string
-            total: number
+            total: bigint
             transactions: typeof transactions.data
           }
         >,
       ),
     )
 
+    const serialized = grouped.map((g: any) => ({
+      ...g,
+      total: g.total.toString(),
+      transactions: g.transactions.map(serialize),
+    }))
+
     return {
-      data: grouped,
+      data: serialized,
       meta: transactions.meta,
     }
   }

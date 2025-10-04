@@ -11,7 +11,7 @@ model Wallet {
   id      String @id @default(ulid())
   name    String
   color   String
-  balance Int?   @default(0)
+  balance BigInt?   @default(0)
 
   transaction Transaction[]
   budgets     Budget[]
@@ -37,7 +37,7 @@ model Transaction {
   id         String          @id @default(ulid())
   categoryId String
   walletId   String
-  amount     Int
+  amount     BigInt
   type       TransactionType
   date       DateTime
   remark     String?
@@ -64,7 +64,7 @@ model Budget {
   name     String
   startAt  DateTime
   endAt    DateTime
-  total    Int
+  total    BigInt
   walletId String
 
   items budgetItem[]
@@ -76,8 +76,8 @@ model budgetItem {
   id         String @id @default(ulid())
   categoryId String
   budgetId   String
-  planned    Int
-  actual     Int    @default(0)
+  planned    BigInt
+  actual     BigInt    @default(0)
 
   budgetItemTransaction BudgetItemTransaction[]
 
