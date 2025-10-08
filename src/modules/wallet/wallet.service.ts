@@ -19,11 +19,59 @@ export class WalletService {
 
   async update(id: string, data: CreateWalletDto) {
     const res = await this.db.wallet.update({ where: { id }, data })
-    return { data: res }
+    return { data: serialize(res) }
   }
 
   async destroy(id: string) {
-    await this.db.wallet.delete({ where: { id } })
+    await this.db.$transaction(async (prisma) => {
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          walletId: id,
+        },
+      })
+      if (transactions.length) {
+        await prisma.transaction.deleteMany({ where: { walletId: id } })
+      }
+
+      const budgets = await prisma.budget.findMany({
+        where: {
+          walletId: id,
+        },
+      })
+      const budgetIds = budgets.map((i) => i.id)
+
+      if (budgets.length) {
+        const items = await prisma.budgetItem.findMany({
+          where: {
+            budgetId: { in: budgetIds },
+          },
+        })
+
+        if (items.length) {
+          const itemIds = items.map((i) => i.id)
+
+          await prisma.budgetItemTransaction.deleteMany({
+            where: {
+              budgetItemId: { in: itemIds },
+            },
+          })
+
+          await prisma.budgetItem.deleteMany({
+            where: { id: { in: itemIds } },
+          })
+        }
+      }
+
+      await prisma.budget.deleteMany({
+        where: {
+          id: {
+            in: budgetIds,
+          },
+        },
+      })
+
+      await prisma.wallet.delete({ where: { id } })
+    })
   }
 
   async find(id: string) {
@@ -45,7 +93,7 @@ export class WalletService {
     })
 
     const serialized = data.data.map(serialize)
-    
+
     return {
       data: serialized,
       meta: data.meta,
