@@ -59,4 +59,9 @@ export class BudgetController {
   destroyItem(@Param('id') id: string) {
     return this.service.removeItem(id)
   }
+  @Delete(':id')
+  @ResponseMessage('budget deleted')
+  destroy(@Param('id') id: string) {
+    return this.service.remove(id)
+  }
 }
