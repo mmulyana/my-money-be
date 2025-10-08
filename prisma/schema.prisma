@@ -8,10 +8,10 @@ datasource db {
 }
 
 model Wallet {
-  id      String @id @default(ulid())
+  id      String  @id @default(ulid())
   name    String
   color   String
-  balance BigInt?   @default(0)
+  balance BigInt? @default(0)
 
   transaction Transaction[]
   budgets     Budget[]
@@ -41,6 +41,7 @@ model Transaction {
   type       TransactionType
   date       DateTime
   remark     String?
+  isPending  Boolean         @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -77,7 +78,7 @@ model budgetItem {
   categoryId String
   budgetId   String
   planned    BigInt
-  actual     BigInt    @default(0)
+  actual     BigInt @default(0)
 
   budgetItemTransaction BudgetItemTransaction[]
 
@@ -105,6 +106,8 @@ model Wishlist {
   description String?
   deadlineAt  DateTime
   doneAt      DateTime?
+  total       BigInt?   @default(0)
+  imageUrl    String?
   createdAt   DateTime  @default(now())
 
   transaction WishlistTransaction[]
