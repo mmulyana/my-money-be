@@ -35,13 +35,7 @@ export class TransactionController {
   destroy(@Param('id') id: string) {
     return this.service.destroy(id)
   }
-
-  @Get(':id')
-  @ResponseMessage('Transaction fetched')
-  find(@Param('id') id: string) {
-    return this.service.find(id)
-  }
-
+  
   @Get()
   @ResponseMessage('Transactions fetched')
   findAll(
@@ -50,5 +44,14 @@ export class TransactionController {
     @Query('year') year: number,
   ) {
     return this.service.findAll({ pagination, month, year })
+  }
+
+  @Get('monthly-summary')
+  @ResponseMessage('monthly summary fetched')
+  getMonthlySummary(
+    @Query('month') month: number,
+    @Query('year') year: number,
+  ) {
+    return this.service.getMonthlySummary({ month, year })
   }
 }
