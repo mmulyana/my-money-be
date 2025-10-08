@@ -22,7 +22,7 @@ export class TransactionService {
   async create(data: CreateTransactionDto) {
     const { amount, walletId, type } = data
 
-    return this.db.$transaction(async (prisma) => {
+    const res = await this.db.$transaction(async (prisma) => {
       if (type === 'income') {
         await this.walletService.updateBalance(walletId, amount, prisma)
       } else if (type === 'expense') {
@@ -57,6 +57,7 @@ export class TransactionService {
 
       return { data: newTransaction }
     })
+    return { data: serialize(res) }
   }
 
   async update(id: string, data: CreateTransactionDto) {
@@ -325,6 +326,49 @@ export class TransactionService {
       await prisma.budgetItemTransaction.delete({
         where: { id: p.id },
       })
+    }
+  }
+
+  async getMonthlySummary({ month, year }: { month: number; year: number }) {
+    const baseDate = new Date(year, month, 1)
+    const startDate = startOfMonth(baseDate)
+    const endDate = endOfMonth(baseDate)
+
+    const transactions = await this.db.transaction.findMany({
+      where: {
+        deletedAt: null,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      select: {
+        amount: true,
+        type: true,
+      },
+    })
+    console.log('trx', transactions)
+
+    let totalIncome = BigInt(0)
+    let totalExpense = BigInt(0)
+
+    for (const trx of transactions) {
+      if (trx.type === 'income') {
+        totalIncome += trx.amount
+      } else if (trx.type === 'expense' || trx.type === 'transfer') {
+        totalExpense += trx.amount
+      }
+    }
+
+    const balance = totalIncome - totalExpense
+
+    const data = {
+      balance: balance.toString(),
+      income: totalIncome.toString(),
+      expense: totalExpense.toString(),
+    }
+    return {
+      data,
     }
   }
 }
