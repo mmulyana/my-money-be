@@ -35,7 +35,7 @@ export class TransactionController {
   destroy(@Param('id') id: string) {
     return this.service.destroy(id)
   }
-  
+
   @Get()
   @ResponseMessage('Transactions fetched')
   findAll(
@@ -53,5 +53,20 @@ export class TransactionController {
     @Query('year') year: number,
   ) {
     return this.service.getMonthlySummary({ month, year })
+  }
+
+  @Get('expense-range')
+  @ResponseMessage('expense range fetched')
+  getExpenseByRange(
+    @Query('date') date: string,
+    @Query('range') range: string,
+  ) {
+    return this.service.getExpenseByRange({ date, range: range as any })
+  }
+
+  @Get('expense-category')
+  @ResponseMessage('expense category fetched')
+  getExpenseByCategory(@Query('date') date: string) {
+    return this.service.getExpenseByCategory(date)
   }
 }
