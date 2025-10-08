@@ -1,5 +1,14 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
-import { addHours, endOfMonth, format, startOfMonth } from 'date-fns'
+import {
+  addDays,
+  addHours,
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfMonth,
+  startOfWeek,
+  subWeeks,
+} from 'date-fns'
 
 import { CreateTransactionDto } from './dto/create-transaction.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
@@ -347,7 +356,7 @@ export class TransactionService {
         type: true,
       },
     })
-    console.log('trx', transactions)
+    // console.log('trx', transactions)
 
     let totalIncome = BigInt(0)
     let totalExpense = BigInt(0)
@@ -369,6 +378,121 @@ export class TransactionService {
     }
     return {
       data,
+    }
+  }
+
+  async getExpenseByRange({
+    date,
+    range,
+  }: {
+    date: string
+    range: '1w' | '2w' | '1m'
+  }) {
+    const baseDate = new Date(date)
+    let startDate: Date
+    let endDate: Date
+
+    switch (range) {
+      case '1w':
+        startDate = startOfWeek(baseDate, { weekStartsOn: 1 })
+        endDate = endOfWeek(baseDate, { weekStartsOn: 1 })
+        break
+      case '2w':
+        const currentWeekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
+        startDate = subWeeks(currentWeekStart, 1) // minggu sebelumnya
+        endDate = endOfWeek(baseDate, { weekStartsOn: 1 })
+        break
+      case '1m':
+        startDate = startOfMonth(baseDate)
+        endDate = endOfMonth(baseDate)
+        break
+      default:
+        throw new Error('Invalid range value')
+    }
+
+    const transactions = await this.db.transaction.findMany({
+      where: {
+        deletedAt: null,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+        type: { in: ['expense', 'transfer'] },
+      },
+      select: {
+        date: true,
+        amount: true,
+      },
+    })
+
+    // Siapkan setiap hari dalam range
+    const days: { date: string; expense: bigint }[] = []
+    for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
+      days.push({
+        date: format(d, 'd MMM'),
+        expense: 0n,
+      })
+    }
+
+    for (const trx of transactions) {
+      const key = format(new Date(trx.date), 'd MMM')
+      const found = days.find((d) => d.date === key)
+      if (found) found.expense += trx.amount
+    }
+
+    return { data: serialize(days) }
+  }
+
+  async getExpenseByCategory(date: string) {
+    const baseDate = new Date(date)
+    const startDate = startOfMonth(baseDate)
+    const endDate = endOfMonth(baseDate)
+
+    const transactions = await this.db.transaction.findMany({
+      where: {
+        deletedAt: null,
+        type: 'expense',
+        date: { gte: startDate, lte: endDate },
+      },
+      include: {
+        category: true,
+      },
+    })
+
+    const grouped = transactions.reduce(
+      (acc, trx) => {
+        const catId = trx.categoryId
+
+        if (!acc[catId]) {
+          acc[catId] = {
+            id: catId,
+            name: trx.category?.name || 'Uknown',
+            color: trx.category?.color || '#ccc',
+            imageUrl: trx.category?.imageUrl || undefined,
+            total: BigInt(0),
+            imageVariant: trx.category?.imageVariant || 'style-1',
+          }
+        }
+
+        acc[catId].total += trx.amount
+        return acc
+      },
+      {} as Record<
+        string,
+        {
+          id: string
+          name: string
+          color: string
+          total: bigint
+          imageUrl?: string
+          imageVariant?: string
+        }
+      >,
+    )
+
+    const res = Object.values(grouped)
+    return {
+      data: serialize(res),
     }
   }
 }
