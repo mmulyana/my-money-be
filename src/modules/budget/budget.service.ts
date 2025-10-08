@@ -1,19 +1,22 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { CreateBudgetDto } from './dto/create-budget.dto'
+import { endOfMonth, startOfMonth } from 'date-fns'
+
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
-import { endOfMonth, startOfMonth } from 'date-fns'
 import { paginate } from 'src/shared/utils/pagination'
+
 import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
-import { UpdateBudgetDto } from './dto/update-budget.dto'
 import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
+import { CreateBudgetDto } from './dto/create-budget.dto'
+import { UpdateBudgetDto } from './dto/update-budget.dto'
+import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class BudgetService {
   constructor(private db: PrismaService) {}
 
   async create(data: CreateBudgetDto) {
-    return this.db.$transaction(async (prisma) => {
+    const res = await this.db.$transaction(async (prisma) => {
       // cek jika ada budget overlap yg category ada yg sama
       const overlapping = await prisma.budget.findMany({
         where: {
@@ -38,11 +41,11 @@ export class BudgetService {
         }
       }
 
-      return await prisma.budget.create({
+      const newBudget = await prisma.budget.create({
         data: {
-          endAt: data.endAt,
           name: data.name,
           startAt: data.startAt,
+          endAt: data.endAt,
           total: data.total,
           walletId: data.walletId,
           items: {
@@ -56,18 +59,55 @@ export class BudgetService {
           items: true,
         },
       })
+
+      await this.attachExistingTransactions(prisma, newBudget)
+      return newBudget
     })
+    return {
+      data: serialize(res),
+    }
   }
 
   async update(id: string, data: UpdateBudgetDto) {
-    return await this.db.budget.update({
+    const res = await this.db.budget.update({
       where: { id },
       data,
     })
+    return {
+      data: serialize(res),
+    }
   }
 
   async remove(id: string) {
-    return await this.db.budget.delete({ where: { id } })
+    const data = await this.db.$transaction(async (prisma) => {
+      const items = await prisma.budgetItem.findMany({
+        where: { budgetId: id },
+        select: { id: true },
+      })
+
+      if (items.length > 0) {
+        const itemIds = items.map((i) => i.id)
+
+        await prisma.budgetItemTransaction.deleteMany({
+          where: {
+            budgetItemId: { in: itemIds },
+          },
+        })
+
+        await prisma.budgetItem.deleteMany({
+          where: { id: { in: itemIds } },
+        })
+      }
+
+      return await prisma.budget.delete({
+        where: {
+          id,
+        },
+      })
+    })
+    return {
+      data: serialize(data),
+    }
   }
 
   async findAll({
@@ -87,7 +127,6 @@ export class BudgetService {
       const endDate = endOfMonth(baseDate)
 
       dateFilter = {
-        // event dimulai di bulan ini
         OR: [
           {
             startAt: {
@@ -95,8 +134,6 @@ export class BudgetService {
               lte: endDate,
             },
           },
-          // atau event mulai sebelum bulan ini
-          // tapi masih berakhir di bulan ini atau setelahnya
           {
             startAt: {
               lte: endDate,
@@ -131,22 +168,30 @@ export class BudgetService {
     })
 
     const budgets = data?.data?.map((budget) => {
+      // hitung total actual pakai BigInt agar konsisten
       const totalActual = budget.items.reduce(
         (acc, item) => acc + item.actual,
-        0,
+        0n,
       )
-      const usage =
-        budget.total > 0 ? Math.round((totalActual / budget.total) * 100) : 0
 
+      // hitung usage (% pemakaian)
+      const usage =
+        budget.total > 0n
+          ? Math.round((Number(totalActual) / Number(budget.total)) * 100)
+          : 0
+
+      // map kategori + konversi BigInt ke string
       const categories = budget.items.map((i) => {
+        const plannedNum = Number(i.planned)
+        const actualNum = Number(i.actual)
         const progress =
-          i.planned > 0 ? Math.round((i.actual / i.planned) * 100) : 0
+          plannedNum > 0 ? Math.round((actualNum / plannedNum) * 100) : 0
 
         return {
           id: i.id,
           category: i.category,
-          planned: i.planned,
-          actual: i.actual,
+          planned: i.planned.toString(),
+          actual: i.actual.toString(),
           progress,
         }
       })
@@ -157,16 +202,16 @@ export class BudgetService {
         startAt: budget.startAt,
         endAt: budget.endAt,
         wallet: budget.wallet,
-        total: budget.total,
-        remaining: budget.total - totalActual,
-        spent: totalActual,
+        total: budget.total.toString(),
+        remaining: (budget.total - totalActual).toString(),
+        spent: totalActual.toString(),
         usage,
         categories,
       }
     })
 
     return {
-      data: budgets,
+      data: serialize(budgets),
       meta: data.meta,
     }
   }
@@ -205,17 +250,20 @@ export class BudgetService {
     if (exists)
       throw new BadRequestException('Category is exist in this budget')
 
-    return this.db.budgetItem.create({
+    const res = await this.db.budgetItem.create({
       data: {
         planned: body.planned,
         budgetId: body.budgetId,
         categoryId: body.categoryId,
       },
     })
+    return {
+      data: serialize(res),
+    }
   }
 
   async updateItem(id: string, body: UpdateBudgetItemDto) {
-    return this.db.budgetItem.update({
+    const data = await this.db.budgetItem.update({
       data: {
         planned: body.planned,
         categoryId: body.categoryId,
@@ -224,15 +272,58 @@ export class BudgetService {
         id,
       },
     })
+    return {
+      data: serialize(data),
+    }
   }
 
   async removeItem(id: string) {
-    return this.db.$transaction(async (prisma) => {
+    console.log('=========== ' + id + ' =============')
+    const res = await this.db.$transaction(async (prisma) => {
       await prisma.budgetItemTransaction.deleteMany({
         where: { budgetItemId: id },
       })
 
+      const exists = await prisma.budgetItem.findUnique({ where: { id } })
+      if (!exists) return null // atau bisa return info khusus
+
       return prisma.budgetItem.delete({ where: { id } })
     })
+
+    return { data: serialize(res) }
+  }
+
+  private async attachExistingTransactions(prisma, budget) {
+    for (const item of budget.items) {
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          walletId: budget.walletId,
+          categoryId: item.categoryId,
+          type: 'expense',
+          date: { gte: budget.startAt, lte: budget.endAt },
+          deletedAt: null,
+        },
+      })
+
+      if (transactions.length > 0) {
+        const totalAmount = transactions.reduce(
+          (sum, trx) => sum + BigInt(trx.amount),
+          BigInt(0),
+        )
+
+        await prisma.budgetItem.update({
+          where: { id: item.id },
+          data: { actual: { increment: totalAmount } },
+        })
+
+        await prisma.budgetItemTransaction.createMany({
+          data: transactions.map((trx) => ({
+            budgetItemId: item.id,
+            transactionId: trx.id,
+          })),
+          skipDuplicates: true,
+        })
+      }
+    }
   }
 }
