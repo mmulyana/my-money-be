@@ -315,14 +315,16 @@ export class BudgetService {
           where: { id: item.id },
           data: { actual: { increment: totalAmount } },
         })
-
-        await prisma.budgetItemTransaction.createMany({
-          data: transactions.map((trx) => ({
-            budgetItemId: item.id,
-            transactionId: trx.id,
-          })),
-          skipDuplicates: true,
-        })
+        try {
+          await prisma.budgetItemTransaction.createMany({
+            data: transactions.map((trx) => ({
+              budgetItemId: item.id,
+              transactionId: trx.id,
+            })),
+          })
+        } catch (err: any) {
+          if (err.code !== 'P2002') throw err
+        }
       }
     }
   }
