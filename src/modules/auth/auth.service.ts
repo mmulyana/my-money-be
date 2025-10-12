@@ -76,6 +76,7 @@ export class AuthService {
         username: googleUser.email,
         password: null,
         isGuest: false,
+        photoUrl: googleUser.picture,
       })
     }
 

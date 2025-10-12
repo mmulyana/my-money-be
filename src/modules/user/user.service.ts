@@ -31,6 +31,7 @@ export class UserService {
     password?: string | null
     email?: string
     isGuest?: boolean
+    photoUrl?: string
   }) {
     return this.db.user.create({ data })
   }
