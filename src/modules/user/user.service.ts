@@ -13,8 +13,14 @@ export class UserService {
     return this.db.user.findUnique({ where: { username } })
   }
 
-  async getProfile(id) {
-    const data = await this.db.user.findUnique({ where: { id } })
+  async getProfile(id: string) {
+    const data = await this.db.user.findUnique({
+      where: { id },
+      omit: {
+        password: true,
+        deletedAt: true,
+      },
+    })
     return { data }
   }
 

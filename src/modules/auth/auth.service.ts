@@ -29,11 +29,12 @@ export class AuthService {
   }
 
   async register(data: RegisterDto) {
-    const exists = data?.email
-      ? await this.userService.findByEmail(data?.email)
-      : await this.userService.findByUsername(data?.username)
-    if (exists)
+    const exists = await this.userService.findByUsernameAndEmail(
+      data?.email ?? data?.username,
+    )
+    if (exists) {
       throw new BadRequestException('email or username already registered')
+    }
 
     const password = await bcrypt.hash(data.password, 10)
     const user = await this.userService.create({
@@ -42,23 +43,33 @@ export class AuthService {
       isGuest: false,
       password,
     })
-    return this.signToken(user.id, user?.username!)
+    const { access_token } = await this.signToken(user.id, user?.username!)
+    return {
+      data: {
+        access_token,
+      },
+    }
   }
 
   async login(data: LoginDto) {
     const user = await this.userService.findByUsernameAndEmail(data?.username)
 
-    if (!user) throw new UnauthorizedException('Email or password is wrong')
+    if (!user) throw new BadRequestException('Email or password is wrong')
 
     // case login with email/username
     if (!user.password) {
-      throw new BadRequestException('Password not found')
+      throw new BadRequestException('Password is required')
     }
 
     const match = await bcrypt.compare(data?.password, user.password)
     if (!match) throw new UnauthorizedException('Email or password is wrong')
 
-    return this.signToken(user.id, user.username)
+    const { access_token } = await this.signToken(user.id, user?.username!)
+    return {
+      data: {
+        access_token,
+      },
+    }
   }
 
   async handleGoogleCallback(code: string) {
@@ -84,7 +95,7 @@ export class AuthService {
       user?.id as string,
       user.username,
     )
-    const redirectUrl = `${this.configService.get('FRONTEND_URL')}/dashboard/app?token=${access_token}`
+    const redirectUrl = `${this.configService.get('FRONTEND_URL')}/app?token=${access_token}`
     return redirectUrl
   }
 
@@ -97,9 +108,7 @@ export class AuthService {
     })
 
     const payload = { sub: user.id, username: user.username }
-    const access_token = await this.jwt.signAsync(payload, {
-      expiresIn: '7d',
-    })
+    const access_token = await this.jwt.signAsync(payload)
     return {
       data: { access_token },
     }
@@ -107,7 +116,9 @@ export class AuthService {
 
   private async signToken(userId: string, username: string) {
     const payload = { sub: userId, username }
-    const access_token = await this.jwt.signAsync(payload, {})
+    const access_token = await this.jwt.signAsync(payload, {
+      expiresIn: '7d',
+    })
     return { access_token }
   }
 
