@@ -4,3 +4,10 @@ export type TPrismaClient = Omit<
   PrismaClient,
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
 >
+
+export type JwtPayload = {
+  sub: string
+  username: string
+  iat?: number
+  exp?: number
+}

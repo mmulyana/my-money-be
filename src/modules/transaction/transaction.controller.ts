@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common'
 
-import { ResponseMessage } from 'src/shared/utils/response-message.decorator'
+import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
 import { CreateTransactionDto } from './dto/create-transaction.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { TransactionService } from './transaction.service'

@@ -9,7 +9,7 @@ import {
   Get,
 } from '@nestjs/common'
 
-import { ResponseMessage } from 'src/shared/utils/response-message.decorator'
+import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
 import { CategoryService } from './category.service'

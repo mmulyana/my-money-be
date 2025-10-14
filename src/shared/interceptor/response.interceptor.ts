@@ -7,7 +7,7 @@ import {
   NestInterceptor,
   ExecutionContext,
 } from '@nestjs/common'
-import { key } from 'src/shared/utils/response-message.decorator'
+import { key } from 'src/shared/decorator/response-message.decorator'
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, any> {

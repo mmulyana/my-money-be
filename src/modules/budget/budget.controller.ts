@@ -8,7 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common'
-import { ResponseMessage } from 'src/shared/utils/response-message.decorator'
+import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
 import { CreateBudgetDto } from './dto/create-budget.dto'
 import { BudgetService } from './budget.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'

@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common'
 import { WishlistService } from './wishlist.service'
-import { ResponseMessage } from 'src/shared/utils/response-message.decorator'
+import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
 import { CreateWishlistDto } from './dto/create-wishlist.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 
