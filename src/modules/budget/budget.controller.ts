@@ -1,29 +1,32 @@
 import {
-  Body,
   Controller,
   Delete,
-  Get,
+  Query,
   Param,
   Patch,
   Post,
-  Query,
+  Body,
+  Get,
 } from '@nestjs/common'
 import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
-import { CreateBudgetDto } from './dto/create-budget.dto'
-import { BudgetService } from './budget.service'
-import { PaginationDto } from 'src/shared/dto/pagination.dto'
-import { UpdateBudgetDto } from './dto/update-budget.dto'
+import { User } from 'src/shared/decorator/user.decorator'
+
 import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
 import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
+import { PaginationDto } from 'src/shared/dto/pagination.dto'
+import { UpdateBudgetDto } from './dto/update-budget.dto'
+import { CreateBudgetDto } from './dto/create-budget.dto'
+import { BudgetService } from './budget.service'
+import { JwtPayload } from 'src/shared/types'
 
 @Controller('budget')
 export class BudgetController {
-  constructor(private readonly service: BudgetService) {}
+  constructor(private readonly service: BudgetService) { }
 
   @Post()
   @ResponseMessage('New Budget created')
-  create(@Body() body: CreateBudgetDto) {
-    return this.service.create(body)
+  create(@Body() body: CreateBudgetDto, @User() user: JwtPayload) {
+    return this.service.create(body, user.id)
   }
 
   @Patch(':id')
@@ -35,16 +38,18 @@ export class BudgetController {
   @Get()
   @ResponseMessage('budget fetched')
   findAll(
+    @User() user: JwtPayload,
     @Query() pagination: PaginationDto,
     @Query('month') month: number,
     @Query('year') year: number,
   ) {
-    return this.service.findAll({ pagination, month, year })
+    return this.service.findAll({ pagination, month, year, userId: user.id })
   }
 
   @Post('/item')
   @ResponseMessage('New item saved')
-  createItem(@Body() body: CreateBudgetItemDto) {
+  createItem(@Body() body: CreateBudgetItemDto,
+  ) {
     return this.service.createItem(body)
   }
 

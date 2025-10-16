@@ -12,15 +12,17 @@ import { ResponseMessage } from 'src/shared/decorator/response-message.decorator
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { CreateWalletDto } from './dto/create-wallet.dto'
 import { WalletService } from './wallet.service'
+import { User } from 'src/shared/decorator/user.decorator'
+import { JwtPayload } from 'src/shared/types'
 
 @Controller('wallet')
 export class WalletController {
-  constructor(private readonly service: WalletService) {}
+  constructor(private readonly service: WalletService) { }
 
   @Post()
   @ResponseMessage('Wallet created')
-  create(@Body() body: CreateWalletDto) {
-    return this.service.create(body)
+  create(@Body() body: CreateWalletDto, @User() user: JwtPayload) {
+    return this.service.create(body, user.id)
   }
 
   @Patch(':id')
@@ -43,10 +45,11 @@ export class WalletController {
 
   @Get()
   @ResponseMessage('Wallets fetched')
-  findAll(@Query() pagination: PaginationDto, @Query('q') q?: string) {
+  findAll(@User() user: JwtPayload, @Query() pagination: PaginationDto, @Query('q') q?: string) {
     return this.service.findAll({
       pagination,
       q,
+      userId: user.id
     })
   }
 }

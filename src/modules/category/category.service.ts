@@ -7,10 +7,10 @@ import { paginate } from 'src/shared/utils/pagination'
 
 @Injectable()
 export class CategoryService {
-  constructor(private db: PrismaService) {}
+  constructor(private db: PrismaService) { }
 
-  async create(data: CreateCategoryDto) {
-    const res = await this.db.category.create({ data })
+  async create(data: CreateCategoryDto, userId: string) {
+    const res = await this.db.category.create({ data: { ...data, userId } })
     return { data: res }
   }
 
@@ -19,11 +19,13 @@ export class CategoryService {
     q,
     parentId,
     type,
+    userId
   }: {
     pagination: PaginationDto
     q?: string
     parentId?: string
     type?: string
+    userId: string
   }) {
     const isParentQuery = !parentId
 
@@ -35,12 +37,13 @@ export class CategoryService {
             q ? { name: { contains: q, mode: 'insensitive' } } : {},
             parentId ? { parentId } : { parentId: null },
             type ? { type } : {},
+            { userId }
           ],
         },
         include: isParentQuery
           ? {
-              children: true,
-            }
+            children: true,
+          }
           : undefined,
         orderBy: { name: 'asc' },
       },

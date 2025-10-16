@@ -1,12 +1,14 @@
 import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common'
-import { AuthService } from './auth.service'
+import { Public } from 'src/shared/decorator/public.decorator'
 import { RegisterDto } from './dto/register.dto'
+import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { Response } from 'express'
 
 @Controller('auth')
+@Public()
 export class AuthController {
-  constructor(private service: AuthService) {}
+  constructor(private service: AuthService) { }
 
   @Post('register')
   async register(@Body() data: RegisterDto) {

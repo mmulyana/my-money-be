@@ -26,9 +26,9 @@ export class TransactionService {
   constructor(
     private db: PrismaService,
     private walletService: WalletService,
-  ) {}
+  ) { }
 
-  async create(data: CreateTransactionDto) {
+  async create(data: CreateTransactionDto, userId: string) {
     const { amount, walletId, type } = data
 
     const res = await this.db.$transaction(async (prisma) => {
@@ -58,6 +58,7 @@ export class TransactionService {
         data: {
           ...data,
           date: normalizedDate,
+          userId
         },
       })
 
@@ -173,10 +174,12 @@ export class TransactionService {
     pagination,
     month: monthIndex,
     year,
+    userId
   }: {
     pagination: PaginationDto
     month?: number
     year?: number
+    userId?: string
   }) {
     let dateFilter = {}
     if (monthIndex != null && year != null) {
@@ -196,7 +199,7 @@ export class TransactionService {
       model: this.db.transaction,
       args: {
         where: {
-          AND: [{ deletedAt: null }, dateFilter],
+          AND: [{ deletedAt: null, userId: userId }, dateFilter],
         },
         orderBy: { date: 'desc' },
         include: {
@@ -338,7 +341,7 @@ export class TransactionService {
     }
   }
 
-  async getMonthlySummary({ month, year }: { month: number; year: number }) {
+  async getMonthlySummary({ month, year, userId }: { month: number; year: number, userId: string }) {
     const baseDate = new Date(year, month, 1)
     const startDate = startOfMonth(baseDate)
     const endDate = endOfMonth(baseDate)
@@ -350,6 +353,7 @@ export class TransactionService {
           gte: startDate,
           lte: endDate,
         },
+        userId
       },
       select: {
         amount: true,
@@ -384,9 +388,11 @@ export class TransactionService {
   async getExpenseByRange({
     date,
     range,
+    userId
   }: {
     date: string
-    range: '1w' | '2w' | '1m'
+    range: '1w' | '2w' | '1m',
+    userId: string
   }) {
     const baseDate = new Date(date)
     let startDate: Date
@@ -417,6 +423,7 @@ export class TransactionService {
           gte: startDate,
           lte: endDate,
         },
+        userId,
         type: { in: ['expense', 'transfer'] },
       },
       select: {
@@ -443,7 +450,7 @@ export class TransactionService {
     return { data: serialize(days) }
   }
 
-  async getExpenseByCategory(date: string) {
+  async getExpenseByCategory(date: string, userId: string) {
     const baseDate = new Date(date)
     const startDate = startOfMonth(baseDate)
     const endDate = endOfMonth(baseDate)
@@ -453,6 +460,7 @@ export class TransactionService {
         deletedAt: null,
         type: 'expense',
         date: { gte: startDate, lte: endDate },
+        userId,
       },
       include: {
         category: true,

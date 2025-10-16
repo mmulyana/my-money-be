@@ -13,9 +13,9 @@ import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class BudgetService {
-  constructor(private db: PrismaService) {}
+  constructor(private db: PrismaService) { }
 
-  async create(data: CreateBudgetDto) {
+  async create(data: CreateBudgetDto, userId: string) {
     const res = await this.db.$transaction(async (prisma) => {
       // cek jika ada budget overlap yg category ada yg sama
       const overlapping = await prisma.budget.findMany({
@@ -54,6 +54,7 @@ export class BudgetService {
               planned: c.planned,
             })),
           },
+          userId
         },
         include: {
           items: true,
@@ -114,10 +115,12 @@ export class BudgetService {
     pagination,
     month: monthIndex,
     year,
+    userId
   }: {
     pagination: PaginationDto
     month?: number
     year?: number
+    userId: string
   }) {
     let dateFilter = {}
     if (monthIndex != null && year != null) {

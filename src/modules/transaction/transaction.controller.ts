@@ -10,18 +10,21 @@ import {
 } from '@nestjs/common'
 
 import { ResponseMessage } from 'src/shared/decorator/response-message.decorator'
+import { User } from 'src/shared/decorator/user.decorator'
+
 import { CreateTransactionDto } from './dto/create-transaction.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { TransactionService } from './transaction.service'
+import { JwtPayload } from 'src/shared/types'
 
 @Controller('transaction')
 export class TransactionController {
-  constructor(private readonly service: TransactionService) {}
+  constructor(private readonly service: TransactionService) { }
 
   @Post()
   @ResponseMessage('New transaction created')
-  create(@Body() body: CreateTransactionDto) {
-    return this.service.create(body)
+  create(@User() user: JwtPayload, @Body() body: CreateTransactionDto) {
+    return this.service.create(body, user.id)
   }
 
   @Patch(':id')
@@ -39,34 +42,37 @@ export class TransactionController {
   @Get()
   @ResponseMessage('Transactions fetched')
   findAll(
+    @User() user: JwtPayload,
     @Query() pagination: PaginationDto,
     @Query('month') month: number,
     @Query('year') year: number,
   ) {
-    return this.service.findAll({ pagination, month, year })
+    return this.service.findAll({ pagination, month, year, userId: user.id })
   }
 
   @Get('monthly-summary')
   @ResponseMessage('monthly summary fetched')
   getMonthlySummary(
+    @User() user: JwtPayload,
     @Query('month') month: number,
     @Query('year') year: number,
   ) {
-    return this.service.getMonthlySummary({ month, year })
+    return this.service.getMonthlySummary({ month, year, userId: user.id })
   }
 
   @Get('expense-range')
   @ResponseMessage('expense range fetched')
   getExpenseByRange(
+    @User() user: JwtPayload,
     @Query('date') date: string,
     @Query('range') range: string,
   ) {
-    return this.service.getExpenseByRange({ date, range: range as any })
+    return this.service.getExpenseByRange({ date, range: range as any, userId: user.id })
   }
 
   @Get('expense-category')
   @ResponseMessage('expense category fetched')
-  getExpenseByCategory(@Query('date') date: string) {
-    return this.service.getExpenseByCategory(date)
+  getExpenseByCategory(@User() user: JwtPayload, @Query('date') date: string) {
+    return this.service.getExpenseByCategory(date, user.id)
   }
 }

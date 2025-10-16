@@ -10,10 +10,10 @@ import { CreateWishlistDto } from './dto/create-wishlist.dto'
 
 @Injectable()
 export class WishlistService {
-  constructor(private db: PrismaService) {}
+  constructor(private db: PrismaService) { }
 
-  async create(data: CreateWishlistDto) {
-    const res = await this.db.wishlist.create({ data })
+  async create(data: CreateWishlistDto, userId: string) {
+    const res = await this.db.wishlist.create({ data: { ...data, userId } })
     return {
       data: serialize(res),
     }
@@ -27,12 +27,12 @@ export class WishlistService {
     return await this.db.wishlist.delete({ where: { id } })
   }
 
-  async findAll({ pagination, q }: { pagination: PaginationDto; q?: string }) {
+  async findAll({ pagination, q, userId }: { pagination: PaginationDto; q?: string, userId: string }) {
     const res = await paginate({
       model: this.db.wishlist,
       args: {
         where: {
-          AND: [q ? { name: { contains: q, mode: 'insensitive' } } : {}],
+          AND: [q ? { name: { contains: q, mode: 'insensitive' } } : {}, { userId }],
         },
         orderBy: {
           createdAt: 'desc',
