@@ -12,9 +12,12 @@ model Wallet {
   name    String
   color   String
   balance BigInt? @default(0)
+  userId  String
 
   transaction Transaction[]
   budgets     Budget[]
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Category {
@@ -25,12 +28,14 @@ model Category {
   parentId     String?
   imageUrl     String?
   imageVariant String?
+  userId       String
 
   transactions Transaction[]
   budgetItem   budgetItem[]
 
   parent   Category?  @relation("CategoryToSubcategories", fields: [parentId], references: [id])
   children Category[] @relation("CategoryToSubcategories")
+  user     User       @relation(fields: [userId], references: [id])
 }
 
 model Transaction {
@@ -42,6 +47,7 @@ model Transaction {
   date       DateTime
   remark     String?
   isPending  Boolean         @default(false)
+  userId     String
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -52,6 +58,7 @@ model Transaction {
 
   category Category @relation(fields: [categoryId], references: [id])
   wallet   Wallet   @relation(fields: [walletId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 }
 
 enum TransactionType {
@@ -67,10 +74,12 @@ model Budget {
   endAt    DateTime
   total    BigInt
   walletId String
+  userId   String
 
   items budgetItem[]
 
   wallet Wallet @relation(fields: [walletId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model budgetItem {
@@ -109,8 +118,11 @@ model Wishlist {
   total       BigInt?   @default(0)
   imageUrl    String?
   createdAt   DateTime  @default(now())
+  userId      String
 
   transaction WishlistTransaction[]
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model WishlistTransaction {
@@ -133,4 +145,10 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  wallet      Wallet[]
+  category    Category[]
+  transaction Transaction[]
+  budget      Budget[]
+  wishlist    Wishlist[]
 }
