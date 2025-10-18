@@ -26,7 +26,7 @@ export class TransactionService {
   constructor(
     private db: PrismaService,
     private walletService: WalletService,
-  ) { }
+  ) {}
 
   async create(data: CreateTransactionDto, userId: string) {
     const { amount, walletId, type } = data
@@ -58,7 +58,7 @@ export class TransactionService {
         data: {
           ...data,
           date: normalizedDate,
-          userId
+          userId,
         },
       })
 
@@ -174,7 +174,7 @@ export class TransactionService {
     pagination,
     month: monthIndex,
     year,
-    userId
+    userId,
   }: {
     pagination: PaginationDto
     month?: number
@@ -243,14 +243,14 @@ export class TransactionService {
       ),
     )
 
-    const serialized = grouped.map((g: any) => ({
-      ...g,
-      total: g.total.toString(),
-      transactions: g.transactions.map(serialize),
-    }))
+    // const serialized = grouped.map((g: any) => ({
+    //   ...g,
+    //   total: g.total.toString(),
+    //   transactions: g.transactions.map(serialize),
+    // }))
 
     return {
-      data: serialized,
+      data: serialize(grouped),
       meta: transactions.meta,
     }
   }
@@ -341,7 +341,15 @@ export class TransactionService {
     }
   }
 
-  async getMonthlySummary({ month, year, userId }: { month: number; year: number, userId: string }) {
+  async getMonthlySummary({
+    month,
+    year,
+    userId,
+  }: {
+    month: number
+    year: number
+    userId: string
+  }) {
     const baseDate = new Date(year, month, 1)
     const startDate = startOfMonth(baseDate)
     const endDate = endOfMonth(baseDate)
@@ -353,7 +361,7 @@ export class TransactionService {
           gte: startDate,
           lte: endDate,
         },
-        userId
+        userId,
       },
       select: {
         amount: true,
@@ -388,10 +396,10 @@ export class TransactionService {
   async getExpenseByRange({
     date,
     range,
-    userId
+    userId,
   }: {
     date: string
-    range: '1w' | '2w' | '1m',
+    range: '1w' | '2w' | '1m'
     userId: string
   }) {
     const baseDate = new Date(date)
@@ -403,11 +411,12 @@ export class TransactionService {
         startDate = startOfWeek(baseDate, { weekStartsOn: 1 })
         endDate = endOfWeek(baseDate, { weekStartsOn: 1 })
         break
-      case '2w':
+      case '2w': {
         const currentWeekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
         startDate = subWeeks(currentWeekStart, 1) // minggu sebelumnya
         endDate = endOfWeek(baseDate, { weekStartsOn: 1 })
         break
+      }
       case '1m':
         startDate = startOfMonth(baseDate)
         endDate = endOfMonth(baseDate)
@@ -450,7 +459,7 @@ export class TransactionService {
     return { data: serialize(days) }
   }
 
-  async getExpenseByCategory(date: string, userId: string) {
+  async getOverview(date: string, userId: string, type: 'income' | 'expense') {
     const baseDate = new Date(date)
     const startDate = startOfMonth(baseDate)
     const endDate = endOfMonth(baseDate)
@@ -458,7 +467,7 @@ export class TransactionService {
     const transactions = await this.db.transaction.findMany({
       where: {
         deletedAt: null,
-        type: 'expense',
+        type,
         date: { gte: startDate, lte: endDate },
         userId,
       },

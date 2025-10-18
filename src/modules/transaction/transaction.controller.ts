@@ -19,7 +19,17 @@ import { JwtPayload } from 'src/shared/types'
 
 @Controller('transaction')
 export class TransactionController {
-  constructor(private readonly service: TransactionService) { }
+  constructor(private readonly service: TransactionService) {}
+
+  @Get('overview')
+  @ResponseMessage('overview fetched')
+  getOverview(
+    @User() user: JwtPayload,
+    @Query('date') date: string,
+    @Query('type') type: 'expense' | 'income',
+  ) {
+    return this.service.getOverview(date, user.id, type)
+  }
 
   @Post()
   @ResponseMessage('New transaction created')
@@ -67,12 +77,10 @@ export class TransactionController {
     @Query('date') date: string,
     @Query('range') range: string,
   ) {
-    return this.service.getExpenseByRange({ date, range: range as any, userId: user.id })
-  }
-
-  @Get('expense-category')
-  @ResponseMessage('expense category fetched')
-  getExpenseByCategory(@User() user: JwtPayload, @Query('date') date: string) {
-    return this.service.getExpenseByCategory(date, user.id)
+    return this.service.getExpenseByRange({
+      date,
+      range: range as any,
+      userId: user.id,
+    })
   }
 }

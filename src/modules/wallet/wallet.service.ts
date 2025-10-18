@@ -10,11 +10,11 @@ import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class WalletService {
-  constructor(private db: PrismaService) { }
+  constructor(private db: PrismaService) {}
 
   async create(data: CreateWalletDto, userId: string) {
     const res = await this.db.wallet.create({ data: { ...data, userId } })
-    return { data: res }
+    return { data: serialize(res) }
   }
 
   async update(id: string, data: CreateWalletDto) {
@@ -78,12 +78,20 @@ export class WalletService {
     await this.db.wallet.findUnique({ where: { id } })
   }
 
-  async findAll({ pagination, q, userId }: { pagination: PaginationDto; q?: string, userId: string }) {
+  async findAll({
+    pagination,
+    q,
+    userId,
+  }: {
+    pagination: PaginationDto
+    q?: string
+    userId: string
+  }) {
     const data = await paginate({
       model: this.db.wallet,
       args: {
         where: {
-          AND: [q ? { name: { contains: q, mode: 'insensitive' } } : {}, { userId }],
+          AND: [q ? { name: { contains: q } } : {}, { userId }],
         },
         orderBy: {
           name: 'asc',

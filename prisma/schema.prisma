@@ -31,7 +31,7 @@ model Category {
   userId       String
 
   transactions Transaction[]
-  budgetItem   budgetItem[]
+  budgetItem   BudgetItem[]
 
   parent   Category?  @relation("CategoryToSubcategories", fields: [parentId], references: [id])
   children Category[] @relation("CategoryToSubcategories")
@@ -76,13 +76,13 @@ model Budget {
   walletId String
   userId   String
 
-  items budgetItem[]
+  items BudgetItem[]
 
   wallet Wallet @relation(fields: [walletId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 }
 
-model budgetItem {
+model BudgetItem {
   id         String @id @default(ulid())
   categoryId String
   budgetId   String
@@ -101,7 +101,7 @@ model BudgetItemTransaction {
   transactionId String
   createdAt     DateTime @default(now())
 
-  budgetItem  budgetItem  @relation(fields: [budgetItemId], references: [id])
+  budgetItem  BudgetItem  @relation(fields: [budgetItemId], references: [id])
   transaction Transaction @relation(fields: [transactionId], references: [id])
 
   @@unique([budgetItemId, transactionId])

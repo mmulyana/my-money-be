@@ -21,7 +21,7 @@ import { JwtPayload } from 'src/shared/types'
 
 @Controller('budget')
 export class BudgetController {
-  constructor(private readonly service: BudgetService) { }
+  constructor(private readonly service: BudgetService) {}
 
   @Post()
   @ResponseMessage('New Budget created')
@@ -48,8 +48,7 @@ export class BudgetController {
 
   @Post('/item')
   @ResponseMessage('New item saved')
-  createItem(@Body() body: CreateBudgetItemDto,
-  ) {
+  createItem(@Body() body: CreateBudgetItemDto) {
     return this.service.createItem(body)
   }
 

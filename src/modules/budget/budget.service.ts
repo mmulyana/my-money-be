@@ -3,13 +3,15 @@ import { endOfMonth, startOfMonth } from 'date-fns'
 
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
-import { paginate } from 'src/shared/utils/pagination'
 
 import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
 import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
 import { CreateBudgetDto } from './dto/create-budget.dto'
 import { UpdateBudgetDto } from './dto/update-budget.dto'
 import { serialize } from 'src/shared/utils'
+import { createPaginator } from 'src/shared/utils/paginator'
+import { Budget, BudgetItem, Category } from '@prisma/client'
+import { TPrismaClient } from 'src/shared/types'
 
 @Injectable()
 export class BudgetService {
@@ -54,7 +56,7 @@ export class BudgetService {
               planned: c.planned,
             })),
           },
-          userId
+          userId,
         },
         include: {
           items: true,
@@ -115,7 +117,7 @@ export class BudgetService {
     pagination,
     month: monthIndex,
     year,
-    userId
+    userId,
   }: {
     pagination: PaginationDto
     month?: number
@@ -149,11 +151,11 @@ export class BudgetService {
       }
     }
 
-    const data = await paginate({
-      model: this.db.budget,
+    const paginateBudget = createPaginator(this.db.budget)
+    const data = await paginateBudget({
       args: {
         where: {
-          AND: [dateFilter],
+          AND: [dateFilter, { userId }],
         },
         orderBy: {
           startAt: 'asc',
@@ -170,48 +172,47 @@ export class BudgetService {
       ...pagination,
     })
 
-    const budgets = data?.data?.map((budget) => {
-      // hitung total actual pakai BigInt agar konsisten
-      const totalActual = budget.items.reduce(
-        (acc, item) => acc + item.actual,
-        0n,
-      )
+    const budgets = data.data.map(
+      (budget: Budget & { items: (BudgetItem & { category: Category })[] }) => {
+        const totalActual = budget.items.reduce(
+          (acc, item) => acc + item.actual,
+          0n,
+        )
 
-      // hitung usage (% pemakaian)
-      const usage =
-        budget.total > 0n
-          ? Math.round((Number(totalActual) / Number(budget.total)) * 100)
-          : 0
+        const usage =
+          budget.total > 0n
+            ? Math.round((Number(totalActual) / Number(budget.total)) * 100)
+            : 0
 
-      // map kategori + konversi BigInt ke string
-      const categories = budget.items.map((i) => {
-        const plannedNum = Number(i.planned)
-        const actualNum = Number(i.actual)
-        const progress =
-          plannedNum > 0 ? Math.round((actualNum / plannedNum) * 100) : 0
+        const categories = budget.items.map((i) => {
+          const plannedNum = Number(i.planned)
+          const actualNum = Number(i.actual)
+          const progress =
+            plannedNum > 0 ? Math.round((actualNum / plannedNum) * 100) : 0
+
+          return {
+            id: i.id,
+            category: i.category,
+            planned: i.planned,
+            actual: i.actual,
+            progress,
+          }
+        })
 
         return {
-          id: i.id,
-          category: i.category,
-          planned: i.planned.toString(),
-          actual: i.actual.toString(),
-          progress,
+          id: budget.id,
+          name: budget.name,
+          startAt: budget.startAt,
+          endAt: budget.endAt,
+          wallet: (budget as any).wallet,
+          total: budget.total.toString(),
+          remaining: (budget.total - totalActual).toString(),
+          spent: totalActual,
+          usage,
+          categories,
         }
-      })
-
-      return {
-        id: budget.id,
-        name: budget.name,
-        startAt: budget.startAt,
-        endAt: budget.endAt,
-        wallet: budget.wallet,
-        total: budget.total.toString(),
-        remaining: (budget.total - totalActual).toString(),
-        spent: totalActual.toString(),
-        usage,
-        categories,
-      }
-    })
+      },
+    )
 
     return {
       data: serialize(budgets),
@@ -296,7 +297,10 @@ export class BudgetService {
     return { data: serialize(res) }
   }
 
-  private async attachExistingTransactions(prisma, budget) {
+  private async attachExistingTransactions(
+    prisma: TPrismaClient,
+    budget: Budget & { items: BudgetItem[] },
+  ) {
     for (const item of budget.items) {
       const transactions = await prisma.transaction.findMany({
         where: {
