@@ -19,7 +19,7 @@ import { JwtPayload } from 'src/shared/types'
 
 @Controller('transaction')
 export class TransactionController {
-  constructor(private readonly service: TransactionService) {}
+  constructor(private readonly service: TransactionService) { }
 
   @Get('overview')
   @ResponseMessage('overview fetched')
@@ -70,14 +70,14 @@ export class TransactionController {
     return this.service.getMonthlySummary({ month, year, userId: user.id })
   }
 
-  @Get('expense-range')
+  @Get('chart')
   @ResponseMessage('expense range fetched')
   getExpenseByRange(
     @User() user: JwtPayload,
     @Query('date') date: string,
     @Query('range') range: string,
   ) {
-    return this.service.getExpenseByRange({
+    return this.service.getChartByRange({
       date,
       range: range as any,
       userId: user.id,

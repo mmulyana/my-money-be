@@ -26,7 +26,7 @@ export class TransactionService {
   constructor(
     private db: PrismaService,
     private walletService: WalletService,
-  ) {}
+  ) { }
 
   async create(data: CreateTransactionDto, userId: string) {
     const { amount, walletId, type } = data
@@ -393,7 +393,7 @@ export class TransactionService {
     }
   }
 
-  async getExpenseByRange({
+  async getChartByRange({
     date,
     range,
     userId,
@@ -413,7 +413,7 @@ export class TransactionService {
         break
       case '2w': {
         const currentWeekStart = startOfWeek(baseDate, { weekStartsOn: 1 })
-        startDate = subWeeks(currentWeekStart, 1) // minggu sebelumnya
+        startDate = subWeeks(currentWeekStart, 1)
         endDate = endOfWeek(baseDate, { weekStartsOn: 1 })
         break
       }
@@ -433,27 +433,35 @@ export class TransactionService {
           lte: endDate,
         },
         userId,
-        type: { in: ['expense', 'transfer'] },
+        type: { in: ['expense', 'income'] },
       },
       select: {
         date: true,
         amount: true,
+        type: true
       },
     })
 
-    // Siapkan setiap hari dalam range
-    const days: { date: string; expense: bigint }[] = []
+    const days: { date: string; expense: bigint, income: bigint }[] = []
     for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
       days.push({
         date: format(d, 'd MMM'),
         expense: 0n,
+        income: 0n
       })
     }
 
     for (const trx of transactions) {
       const key = format(new Date(trx.date), 'd MMM')
       const found = days.find((d) => d.date === key)
-      if (found) found.expense += trx.amount
+      if (found) {
+        if (trx.type == 'income') {
+          found.income += trx.amount
+        } else {
+          found.expense += trx.amount
+        }
+
+      }
     }
 
     return { data: serialize(days) }
