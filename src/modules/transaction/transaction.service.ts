@@ -384,12 +384,12 @@ export class TransactionService {
     const balance = totalIncome - totalExpense
 
     const data = {
-      balance: balance.toString(),
-      income: totalIncome.toString(),
-      expense: totalExpense.toString(),
+      balance: balance,
+      income: totalIncome,
+      expense: totalExpense,
     }
     return {
-      data,
+      data: serialize(data),
     }
   }
 
