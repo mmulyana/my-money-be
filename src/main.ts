@@ -22,6 +22,6 @@ async function bootstrap() {
   app.useGlobalPipes(new ZodValidationPipe())
   app.useGlobalGuards(new JwtAuthGuard(jwtService, reflector, prismaService))
 
-  await app.listen(process.env.PORT ?? 3000)
+  await app.listen(process.env.PORT ?? 3001)
 }
 bootstrap()
