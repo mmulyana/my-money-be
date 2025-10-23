@@ -29,29 +29,65 @@ export class TransactionService {
   ) { }
 
   async create(data: CreateTransactionDto, userId: string) {
-    const { amount, walletId, type } = data
+    const { amount, walletId, type, toWalletId, categoryId, date, remark } = data
 
     const res = await this.db.$transaction(async (prisma) => {
-      if (type === 'income') {
-        await this.walletService.updateBalance(walletId, amount, prisma)
-      } else if (type === 'expense') {
-        await this.walletService.updateBalance(walletId, -amount, prisma)
-      } else if (type === 'transfer_out' || type === 'transfer_in') {
-        if (!data.toWalletId) {
-          throw new InternalServerErrorException(
-            'toWalletId is required for transfer transactions.',
-          )
+      if (!data.date) throw new Error('date is required')
+
+      const localDate = new Date(data.date)
+      const normalizedDate = addHours(localDate, -7)
+
+      // CASE: TRANSFER
+      if (type === 'transfer_out') {
+        if (!toWalletId) {
+          throw new InternalServerErrorException('toWalletId is required for transfer transactions.')
         }
+
+        // Update saldo
         await this.walletService.updateBalance(walletId, -amount, prisma)
-        await this.walletService.updateBalance(data.toWalletId, amount, prisma)
+        await this.walletService.updateBalance(toWalletId, amount, prisma)
+
+        // transaksi keluar wallet asal
+        const outTx = await prisma.transaction.create({
+          data: {
+            ...data,
+            type: 'transfer_out',
+            date: normalizedDate,
+            userId,
+          },
+        })
+
+        // transaksi masuk wallet tujuan
+        const inTx = await prisma.transaction.create({
+          data: {
+            walletId: toWalletId,
+            type: 'transfer_in',
+            amount,
+            remark: `Received from ${walletId}`,
+            date: normalizedDate,
+            userId,
+            categoryId: categoryId,
+            referenceId: outTx.id,
+          },
+        })
+
+        // update reference balik
+        await prisma.transaction.update({
+          where: { id: outTx.id },
+          data: { referenceId: inTx.id },
+        })
+
+        return { data: { outTx, inTx } }
       }
 
-      let normalizedDate: Date | undefined
-      if (data.date) {
-        const localDate = new Date(data.date)
-        normalizedDate = addHours(localDate, -7)
-      } else {
-        throw new Error('date is required')
+      // CASE: INCOME
+      if (type === 'income') {
+        await this.walletService.updateBalance(walletId, amount, prisma)
+      }
+
+      // CASE: EXPENSE
+      if (type === 'expense') {
+        await this.walletService.updateBalance(walletId, -amount, prisma)
       }
 
       const newTransaction = await prisma.transaction.create({
@@ -62,17 +98,19 @@ export class TransactionService {
         },
       })
 
-      this.budgetService.recalculateByTransaction({
+      // update budget
+      await this.budgetService.recalculateByTransaction({
         amount: newTransaction.amount,
         categoryId: newTransaction.categoryId,
         date: newTransaction.date,
         type: newTransaction.type,
         walletId: newTransaction.walletId,
-        prisma: prisma
+        prisma,
       })
 
       return { data: newTransaction }
     })
+
     return { data: serialize(res) }
   }
 
