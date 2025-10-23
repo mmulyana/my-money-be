@@ -6,20 +6,20 @@ import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { paginate } from 'src/shared/utils/pagination'
 import { serialize } from 'src/shared/utils'
 
-import { CreateWishlistDto } from './dto/create-wishlist.dto'
+import { CreateGoalDto } from './dto/create-goal'
 
 @Injectable()
-export class WishlistService {
+export class GoalService {
   constructor(private db: PrismaService) { }
 
-  async create(data: CreateWishlistDto, userId: string) {
+  async create(data: CreateGoalDto, userId: string) {
     const res = await this.db.goal.create({ data: { ...data, userId } })
     return {
       data: serialize(res),
     }
   }
 
-  async update(id: string, data: CreateWishlistDto) {
+  async update(id: string, data: CreateGoalDto) {
     return await this.db.goal.update({ where: { id }, data })
   }
 

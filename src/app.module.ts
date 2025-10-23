@@ -9,11 +9,10 @@ import { CategoryModule } from './modules/category/category.module'
 import { WalletModule } from './modules/wallet/wallet.module'
 import { PrismaModule } from './shared/prisma/prisma.module'
 import { BudgetModule } from './modules/budget/budget.module'
-import { WishlistModule } from './modules/wishlist/wishlist.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { UserModule } from './modules/user/user.module'
 import { ConfigModule } from '@nestjs/config'
-import { GoalModule } from './modules/goal/goal.module';
+import { GoalModule } from './modules/goal/goal.module'
 
 @Module({
   imports: [
@@ -25,7 +24,6 @@ import { GoalModule } from './modules/goal/goal.module';
     WalletModule,
     TransactionModule,
     BudgetModule,
-    WishlistModule,
     AuthModule,
     UserModule,
     GoalModule,
@@ -33,4 +31,4 @@ import { GoalModule } from './modules/goal/goal.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

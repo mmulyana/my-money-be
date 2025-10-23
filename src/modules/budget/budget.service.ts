@@ -1,17 +1,16 @@
+import { Budget, BudgetItem, Category, TransactionType } from '@prisma/client'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { endOfMonth, startOfMonth } from 'date-fns'
 
 import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
+import { createPaginator } from 'src/shared/utils/paginator'
+import { serialize } from 'src/shared/utils'
 
 import { CreateBudgetItemDto } from './dto/create-budget-item.dto'
 import { UpdateBudgetItemDto } from './dto/update-budget-item.dto'
 import { CreateBudgetDto } from './dto/create-budget.dto'
 import { UpdateBudgetDto } from './dto/update-budget.dto'
-import { serialize } from 'src/shared/utils'
-import { createPaginator } from 'src/shared/utils/paginator'
-import { Budget, BudgetItem, Category, TransactionType } from '@prisma/client'
-import { TPrismaClient } from 'src/shared/types'
 
 @Injectable()
 export class BudgetService {
@@ -367,9 +366,12 @@ export class BudgetService {
     categoryId,
     date,
     type,
-    walletId
-  }: { categoryId: string, walletId: string, amount: bigint, date: Date, type: TransactionType }) {
+    walletId,
+    prisma
+  }: { categoryId: string, walletId: string, amount: bigint, date: Date, type: TransactionType, prisma?: typeof this.db }) {
     if (type !== 'expense') return null
+
+    const db = prisma ?? this.db
 
     const budgets = await this.db.budget.findMany({
       where: {
@@ -403,6 +405,7 @@ export class BudgetService {
   async recalculateOnTrxUpdate({
     oldData,
     newData,
+    prisma
   }: {
     oldData: {
       amount: bigint
@@ -417,7 +420,8 @@ export class BudgetService {
       date: Date
       walletId: string
       type: TransactionType
-    }
+    },
+    prisma?: typeof this.db
   }): Promise<void> {
     if (oldData.type !== 'expense' && newData.type !== 'expense') return
 
@@ -435,6 +439,7 @@ export class BudgetService {
         date: oldData.date,
         walletId: oldData.walletId,
         type: oldData.type,
+        prisma
       })
 
       await this.recalculateByTransaction({
@@ -443,6 +448,7 @@ export class BudgetService {
         date: newData.date,
         walletId: newData.walletId,
         type: newData.type,
+        prisma
       })
     } else {
       // amount beda
@@ -454,6 +460,7 @@ export class BudgetService {
           date: newData.date,
           walletId: newData.walletId,
           type: newData.type,
+          prisma
         })
       }
     }
@@ -466,21 +473,24 @@ export class BudgetService {
     date,
     type,
     walletId,
+    prisma
   }: {
     categoryId: string
     walletId: string
     amount: bigint
     date: Date
-    type: TransactionType
+    type: TransactionType,
+    prisma?: typeof this.db
   }): Promise<void> {
     if (type !== 'expense') return
 
     await this.recalculateByTransaction({
-      amount: -amount, // decrement
+      amount: -amount,
       categoryId,
       date,
       walletId,
       type,
+      prisma
     })
   }
 }
