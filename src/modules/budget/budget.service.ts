@@ -63,7 +63,6 @@ export class BudgetService {
         },
       })
 
-      await this.attachExistingTransactions(prisma, newBudget)
       return newBudget
     })
     return {
@@ -90,12 +89,6 @@ export class BudgetService {
 
       if (items.length > 0) {
         const itemIds = items.map((i) => i.id)
-
-        await prisma.budgetItemTransaction.deleteMany({
-          where: {
-            budgetItemId: { in: itemIds },
-          },
-        })
 
         await prisma.budgetItem.deleteMany({
           where: { id: { in: itemIds } },
@@ -282,14 +275,10 @@ export class BudgetService {
   }
 
   async removeItem(id: string) {
-    console.log('=========== ' + id + ' =============')
     const res = await this.db.$transaction(async (prisma) => {
-      await prisma.budgetItemTransaction.deleteMany({
-        where: { budgetItemId: id },
-      })
 
       const exists = await prisma.budgetItem.findUnique({ where: { id } })
-      if (!exists) return null // atau bisa return info khusus
+      if (!exists) return null
 
       return prisma.budgetItem.delete({ where: { id } })
     })
@@ -297,12 +286,19 @@ export class BudgetService {
     return { data: serialize(res) }
   }
 
-  private async attachExistingTransactions(
-    prisma: TPrismaClient,
-    budget: Budget & { items: BudgetItem[] },
-  ) {
+  async recalcActual(budgetId: string) {
+    const budget = await this.db.budget.findUnique({
+      where: { id: budgetId },
+      include: { items: true },
+    })
+
+    if (!budget) {
+      throw new BadRequestException("budget not found")
+    }
+
     for (const item of budget.items) {
-      const transactions = await prisma.transaction.findMany({
+      const actual = await this.db.transaction.aggregate({
+        _sum: { amount: true },
         where: {
           walletId: budget.walletId,
           categoryId: item.categoryId,
@@ -311,28 +307,11 @@ export class BudgetService {
           deletedAt: null,
         },
       })
-
-      if (transactions.length > 0) {
-        const totalAmount = transactions.reduce(
-          (sum, trx) => sum + BigInt(trx.amount),
-          BigInt(0),
-        )
-
-        await prisma.budgetItem.update({
-          where: { id: item.id },
-          data: { actual: { increment: totalAmount } },
-        })
-        try {
-          await prisma.budgetItemTransaction.createMany({
-            data: transactions.map((trx) => ({
-              budgetItemId: item.id,
-              transactionId: trx.id,
-            })),
-          })
-        } catch (err: any) {
-          if (err.code !== 'P2002') throw err
-        }
-      }
+      await this.db.budgetItem.update({
+        where: { id: item.id },
+        data: { actual: actual._sum.amount ?? 0n },
+      })
     }
   }
+
 }

@@ -39,32 +39,33 @@ model Category {
 }
 
 model Transaction {
-  id         String          @id @default(ulid())
-  categoryId String
-  walletId   String
-  amount     BigInt
-  type       TransactionType
-  date       DateTime
-  remark     String?
-  isPending  Boolean         @default(false)
-  userId     String
+  id          String          @id @default(ulid())
+  categoryId  String
+  walletId    String
+  amount      BigInt
+  type        TransactionType
+  date        DateTime
+  isPending   Boolean         @default(false)
+  userId      String
+  remark      String?
+  referenceId String?
+  goalId      String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  budgetItemTransaction BudgetItemTransaction[]
-  wishlistTransaction   WishlistTransaction[]
-
   category Category @relation(fields: [categoryId], references: [id])
   wallet   Wallet   @relation(fields: [walletId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
+  goal     Goal?    @relation(fields: [goalId], references: [id])
 }
 
 enum TransactionType {
   expense
   income
-  transfer
+  transfer_in
+  transfer_out
 }
 
 model Budget {
@@ -89,27 +90,11 @@ model BudgetItem {
   planned    BigInt
   actual     BigInt @default(0)
 
-  budgetItemTransaction BudgetItemTransaction[]
-
   budget   Budget   @relation(fields: [budgetId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
 }
 
-model BudgetItemTransaction {
-  id            String   @id @default(ulid())
-  budgetItemId  String
-  transactionId String
-  createdAt     DateTime @default(now())
-
-  budgetItem  BudgetItem  @relation(fields: [budgetItemId], references: [id])
-  transaction Transaction @relation(fields: [transactionId], references: [id])
-
-  @@unique([budgetItemId, transactionId])
-  @@index([transactionId])
-  @@index([budgetItemId])
-}
-
-model Wishlist {
+model Goal {
   id          String    @id @default(ulid())
   name        String
   description String?
@@ -120,18 +105,8 @@ model Wishlist {
   createdAt   DateTime  @default(now())
   userId      String
 
-  transaction WishlistTransaction[]
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model WishlistTransaction {
-  id            String @id @default(ulid())
-  wishlistId    String
-  transactionId String
-
-  wishlist    Wishlist    @relation(fields: [wishlistId], references: [id])
-  transaction Transaction @relation(fields: [transactionId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+  transaction Transaction[]
 }
 
 model User {
@@ -150,5 +125,5 @@ model User {
   category    Category[]
   transaction Transaction[]
   budget      Budget[]
-  wishlist    Wishlist[]
+  goal        Goal[]
 }

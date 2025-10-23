@@ -1,11 +1,12 @@
 import { NestFactory, Reflector } from '@nestjs/core'
 import { JwtService } from '@nestjs/jwt'
 
-import { ResponseInterceptor } from './shared/interceptor/response.interceptor'
 import { ZodValidationPipe } from './shared/pipes/zod-validation/zod-validation.pipe'
-import { JwtAuthGuard } from './shared/guards/jwt-auth-guard'
-import { AppModule } from './app.module'
+import { ResponseInterceptor } from './shared/interceptor/response.interceptor'
 import { PrismaService } from './shared/prisma/prisma.service'
+import { JwtAuthGuard } from './shared/guards/jwt-auth-guard'
+
+import { AppModule } from './app.module'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)

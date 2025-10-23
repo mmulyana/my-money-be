@@ -13,6 +13,7 @@ import { WishlistModule } from './modules/wishlist/wishlist.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { UserModule } from './modules/user/user.module'
 import { ConfigModule } from '@nestjs/config'
+import { GoalModule } from './modules/goal/goal.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ConfigModule } from '@nestjs/config'
     WishlistModule,
     AuthModule,
     UserModule,
+    GoalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

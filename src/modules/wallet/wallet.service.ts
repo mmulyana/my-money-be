@@ -10,7 +10,7 @@ import { serialize } from 'src/shared/utils'
 
 @Injectable()
 export class WalletService {
-  constructor(private db: PrismaService) {}
+  constructor(private db: PrismaService) { }
 
   async create(data: CreateWalletDto, userId: string) {
     const res = await this.db.wallet.create({ data: { ...data, userId } })
@@ -49,13 +49,6 @@ export class WalletService {
 
         if (items.length) {
           const itemIds = items.map((i) => i.id)
-
-          await prisma.budgetItemTransaction.deleteMany({
-            where: {
-              budgetItemId: { in: itemIds },
-            },
-          })
-
           await prisma.budgetItem.deleteMany({
             where: { id: { in: itemIds } },
           })
