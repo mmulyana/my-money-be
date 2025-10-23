@@ -17,15 +17,15 @@ import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { paginate } from 'src/shared/utils/pagination'
 
 import { WalletService } from '../wallet/wallet.service'
-import { TPrismaClient } from 'src/shared/types'
-import { PrismaClient, Transaction } from '@prisma/client'
 import { serialize } from 'src/shared/utils'
+import { BudgetService } from '../budget/budget.service'
 
 @Injectable()
 export class TransactionService {
   constructor(
     private db: PrismaService,
     private walletService: WalletService,
+    private budgetService: BudgetService
   ) { }
 
   async create(data: CreateTransactionDto, userId: string) {
@@ -60,6 +60,15 @@ export class TransactionService {
           date: normalizedDate,
           userId,
         },
+      })
+
+      this.budgetService.recalculateByTransaction({
+        amount: newTransaction.amount,
+        categoryId: newTransaction.categoryId,
+        date: newTransaction.date,
+        type: newTransaction.type,
+        walletId: newTransaction.walletId,
+        prisma: prisma
       })
 
       return { data: newTransaction }
@@ -113,6 +122,24 @@ export class TransactionService {
         },
       })
 
+      await this.budgetService.recalculateOnTrxUpdate({
+        newData: {
+          amount: updatedTransaction.amount,
+          categoryId: updatedTransaction.categoryId,
+          date: updatedTransaction.date,
+          type: updatedTransaction.type,
+          walletId: updatedTransaction.walletId
+        },
+        oldData: {
+          amount: oldTransaction.amount,
+          categoryId: oldTransaction.categoryId,
+          date: oldTransaction.date,
+          type: oldTransaction.type,
+          walletId: oldTransaction.walletId
+        },
+        prisma
+      })
+
       return { data: serialize(updatedTransaction) }
     })
   }
@@ -140,9 +167,18 @@ export class TransactionService {
         )
       }
 
-      await prisma.transaction.update({
+      const deletedTrx = await prisma.transaction.update({
         where: { id },
         data: { deletedAt: new Date() },
+      })
+
+      await this.budgetService.recalculateOnTrxDelete({
+        amount: deletedTrx.amount,
+        categoryId: deletedTrx.categoryId,
+        date: deletedTrx.date,
+        type: deletedTrx.type,
+        walletId: deletedTrx.walletId,
+        prisma
       })
     })
   }
