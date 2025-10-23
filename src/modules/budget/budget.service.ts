@@ -10,7 +10,7 @@ import { CreateBudgetDto } from './dto/create-budget.dto'
 import { UpdateBudgetDto } from './dto/update-budget.dto'
 import { serialize } from 'src/shared/utils'
 import { createPaginator } from 'src/shared/utils/paginator'
-import { Budget, BudgetItem, Category } from '@prisma/client'
+import { Budget, BudgetItem, Category, TransactionType } from '@prisma/client'
 import { TPrismaClient } from 'src/shared/types'
 
 @Injectable()
@@ -286,7 +286,7 @@ export class BudgetService {
     return { data: serialize(res) }
   }
 
-  async recalcActual(budgetId: string) {
+  async recalculateByBudgetId(budgetId: string) {
     const budget = await this.db.budget.findUnique({
       where: { id: budgetId },
       include: { items: true },
@@ -314,4 +314,173 @@ export class BudgetService {
     }
   }
 
+  async recalculateByDate(date: Date) {
+    const budgets = await this.db.budget.findMany({
+      where: {
+        startAt: { lte: date },
+        endAt: { gte: date },
+      },
+      include: { items: true },
+    })
+
+    if (budgets.length === 0) return []
+
+    const minStart = budgets.reduce((min, b) => b.startAt < min ? b.startAt : min, budgets[0].startAt)
+    const maxEnd = budgets.reduce((max, b) => b.endAt > max ? b.endAt : max, budgets[0].endAt)
+
+    const transactions = await this.db.transaction.findMany({
+      where: {
+        type: 'expense',
+        deletedAt: null,
+        date: { gte: minStart, lte: maxEnd },
+      },
+      select: {
+        amount: true,
+        categoryId: true,
+        walletId: true,
+        date: true,
+      },
+    })
+
+    for (const budget of budgets) {
+      for (const item of budget.items) {
+        const total = transactions
+          .filter(
+            (trx) =>
+              trx.walletId === budget.walletId &&
+              trx.categoryId === item.categoryId &&
+              trx.date >= budget.startAt &&
+              trx.date <= budget.endAt,
+          )
+          .reduce((sum, trx) => sum + BigInt(trx.amount), 0n)
+
+        await this.db.budgetItem.update({
+          where: { id: item.id },
+          data: { actual: total },
+        })
+      }
+    }
+  }
+
+  async recalculateByTransaction({
+    amount,
+    categoryId,
+    date,
+    type,
+    walletId
+  }: { categoryId: string, walletId: string, amount: bigint, date: Date, type: TransactionType }) {
+    if (type !== 'expense') return null
+
+    const budgets = await this.db.budget.findMany({
+      where: {
+        walletId,
+        startAt: { lte: date },
+        endAt: { gte: date }
+      },
+      include: {
+        items: true
+      }
+    })
+
+    if (budgets.length === 0) return
+
+    for (const budget of budgets) {
+      const item = budget.items.find(i => i.categoryId === categoryId)
+      if (item) {
+        await this.db.budgetItem.update({
+          where: {
+            id: item.id,
+          },
+          data: {
+            actual: { increment: amount }
+          }
+        })
+      }
+    }
+  }
+
+  // handle update trx
+  async recalculateOnTrxUpdate({
+    oldData,
+    newData,
+  }: {
+    oldData: {
+      amount: bigint
+      categoryId: string
+      date: Date
+      walletId: string
+      type: TransactionType
+    }
+    newData: {
+      amount: bigint
+      categoryId: string
+      date: Date
+      walletId: string
+      type: TransactionType
+    }
+  }): Promise<void> {
+    if (oldData.type !== 'expense' && newData.type !== 'expense') return
+
+    // kategori/walet/tanggal beda
+    const hasBudgetScopeChanged =
+      oldData.walletId !== newData.walletId ||
+      oldData.categoryId !== newData.categoryId ||
+      oldData.date.getTime() !== newData.date.getTime()
+
+    if (hasBudgetScopeChanged) {
+      // Kurangi dari budget lama
+      await this.recalculateByTransaction({
+        amount: -oldData.amount,
+        categoryId: oldData.categoryId,
+        date: oldData.date,
+        walletId: oldData.walletId,
+        type: oldData.type,
+      })
+
+      await this.recalculateByTransaction({
+        amount: newData.amount,
+        categoryId: newData.categoryId,
+        date: newData.date,
+        walletId: newData.walletId,
+        type: newData.type,
+      })
+    } else {
+      // amount beda
+      const diff = newData.amount - oldData.amount
+      if (diff !== 0n) {
+        await this.recalculateByTransaction({
+          amount: diff,
+          categoryId: newData.categoryId,
+          date: newData.date,
+          walletId: newData.walletId,
+          type: newData.type,
+        })
+      }
+    }
+  }
+
+  // handle delete trx
+  async recalculateOnTrxDelete({
+    amount,
+    categoryId,
+    date,
+    type,
+    walletId,
+  }: {
+    categoryId: string
+    walletId: string
+    amount: bigint
+    date: Date
+    type: TransactionType
+  }): Promise<void> {
+    if (type !== 'expense') return
+
+    await this.recalculateByTransaction({
+      amount: -amount, // decrement
+      categoryId,
+      date,
+      walletId,
+      type,
+    })
+  }
 }
