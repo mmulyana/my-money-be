@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto'
 import { ConfigService } from '@nestjs/config'
 import { OAuth2Client } from 'google-auth-library'
 import { nanoid } from 'nanoid'
+import { WalletService } from '../wallet/wallet.service'
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     private userService: UserService,
     private jwt: JwtService,
     private readonly configService: ConfigService,
+    private walletService: WalletService
   ) {
     this.oauth2Client = new OAuth2Client({
       clientId: this.configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -43,6 +45,12 @@ export class AuthService {
       isGuest: false,
       password,
     })
+
+    await this.walletService.create({
+      color: '#FFF',
+      name: "wishlist"
+    }, user.id)
+
     const { access_token } = await this.signToken(user.id, user?.username!)
     return {
       data: {
