@@ -4,13 +4,20 @@ import { PrismaService } from 'src/shared/prisma/prisma.service'
 import { CreateCategoryDto } from './dto/create-category.dto'
 import { PaginationDto } from 'src/shared/dto/pagination.dto'
 import { paginate } from 'src/shared/utils/pagination'
+import { TransactionType } from '@prisma/client'
 
 @Injectable()
 export class CategoryService {
-  constructor(private db: PrismaService) {}
+  constructor(private db: PrismaService) { }
 
   async create(data: CreateCategoryDto, userId: string) {
-    const res = await this.db.category.create({ data: { ...data, userId } })
+    const res = await this.db.category.create({
+      data: {
+        ...data,
+        userId,
+        type: data.type as TransactionType,
+      }
+    })
     return { data: res }
   }
 
@@ -42,8 +49,8 @@ export class CategoryService {
         },
         include: isParentQuery
           ? {
-              children: true,
-            }
+            children: true,
+          }
           : undefined,
         orderBy: { name: 'asc' },
       },
@@ -60,7 +67,12 @@ export class CategoryService {
   }
 
   async update(id: string, data: CreateCategoryDto) {
-    const res = await this.db.category.update({ where: { id }, data })
+    const res = await this.db.category.update({
+      where: { id }, data: {
+        ...data,
+        type: data.type as TransactionType
+      }
+    })
     return { data: res }
   }
 
